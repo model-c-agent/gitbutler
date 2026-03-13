@@ -1,8 +1,12 @@
 # Memory: wasi-serde-objectid (s02)
 
-## Status: planning
+## Status: complete
 
 ## Errors & Fixes
+
+### 2026-03-13 -- `cargo check --features legacy` fails (pre-existing)
+**Context:** OpenSSL build from source fails on this system, preventing `git2`/`libgit2-sys` from compiling.
+**Impact:** None for s02. The `legacy` feature pulls in `git2` which requires OpenSSL. This is a pre-existing system-level build issue, not caused by our change. `cargo check --features wasi` and `cargo test -p but-serde` both pass cleanly.
 
 ## Decisions
 

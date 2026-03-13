@@ -11,6 +11,7 @@ doctest = false
 
 [features]
 legacy = ["dep:git2"]
+wasi = []   # WASI target: no git2 deps. gix-based modules always available.
 
 [dependencies]
 git2 = { workspace = true, optional = true }
