@@ -210,6 +210,7 @@ pub enum Subcommands {
     /// but edit README.md
     /// ```
     ///
+    #[cfg(feature = "tui")]
     #[clap(verbatim_doc_comment, hide = true)]
     Edit {
         /// Path to the file to edit (created if it doesn't exist)

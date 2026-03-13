@@ -222,6 +222,7 @@ impl Subcommands {
                 skill::Subcommands::Install { .. } => SkillInstall,
                 skill::Subcommands::Check { .. } => SkillCheck,
             },
+            #[cfg(feature = "tui")]
             Subcommands::Edit { .. } => Edit,
             #[cfg(feature = "native")]
             Subcommands::Link(link::Platform { .. }) => Unknown,

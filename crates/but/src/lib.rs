@@ -53,6 +53,7 @@ pub use id::{CliId, IdMap};
 mod alias;
 /// A place for all command implementations.
 pub(crate) mod command;
+#[cfg(feature = "tui")]
 mod tui;
 
 const CLI_DATE: CustomFormat = gix::date::time::format::ISO8601;
@@ -708,6 +709,7 @@ async fn match_subcommand(
                     .show_root_cause_error_then_exit_without_destructors(output)
             }
         }
+        #[cfg(feature = "tui")]
         Subcommands::Edit { file } => {
             let path = args.current_dir.join(&file);
             tui::editor::edit_file(&path)
