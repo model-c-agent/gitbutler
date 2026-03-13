@@ -23,8 +23,29 @@ packaged-but-distribution = []
 
 # Marker features for platform capability gating
 tui = ["dep:ratatui", "dep:crossterm", "dep:minus", "dep:terminal_size"]
-native = []    # Native platform: git2, posthog, machine-uid, keyring
-wasi = []      # WASI target: no TUI, no native platform deps
+native = [
+    "dep:command-group",        # s05
+    "dep:posthog-rs",           # s05
+    "dep:machine-uid",          # s05
+    "dep:but-github",           # s06
+    "dep:but-gitlab",           # s06
+    "dep:but-forge",            # s06
+    "dep:but-update",           # s06
+    "dep:but-llm",              # s06
+    "dep:git2",                 # s07
+    "dep:dirs",                 # s07
+    "dep:but-installer",        # s07
+    "dep:but-api",              # s13 — heavy transitive deps
+    "dep:but-workspace",        # s13
+    "dep:but-graph",            # s13
+    "dep:but-rebase",           # s13
+    "dep:but-link",             # s13
+    "dep:but-forge-storage",    # s13
+    "dep:but-hunk-assignment",  # s13
+    "dep:rmcp",                 # s13 — networking
+    "dep:cli-prompts",          # s13 — interactive terminal
+]
+wasi = []
 
 legacy = [
     "but-workspace/legacy",
@@ -56,19 +77,19 @@ but-core.workspace = true
 but-settings.workspace = true
 but-serde.workspace = true
 but-secret.workspace = true
-but-update.workspace = true
-but-installer.workspace = true
+but-update = { workspace = true, optional = true }
+but-installer = { workspace = true, optional = true }
 but-path.workspace = true
 but-ctx.workspace = true
-but-rebase.workspace = true
-but-github.workspace = true
-but-gitlab.workspace = true
-but-forge.workspace = true
-but-forge-storage.workspace = true
-but-workspace = { workspace = true }
-but-api = { workspace = true, features = ["path-bytes"] }
-but-graph.workspace = true
-but-llm.workspace = true
+but-rebase = { workspace = true, optional = true }
+but-github = { workspace = true, optional = true }
+but-gitlab = { workspace = true, optional = true }
+but-forge = { workspace = true, optional = true }
+but-forge-storage = { workspace = true, optional = true }
+but-workspace = { workspace = true, optional = true }
+but-api = { workspace = true, features = ["path-bytes"], optional = true }
+but-graph = { workspace = true, optional = true }
+but-llm = { workspace = true, optional = true }
 but-link = { workspace = true, optional = true }
 git2 = { workspace = true, optional = true }
 
@@ -76,7 +97,7 @@ git2 = { workspace = true, optional = true }
 # so need some refactoring/rethinking to become usable.
 but-action = { workspace = true, optional = true }
 # Still uses `gitbutler-stack`, but otherwise it is non-legacy.
-but-hunk-assignment.workspace = true
+but-hunk-assignment = { workspace = true, optional = true }
 but-claude = { workspace = true, optional = true }
 but-cursor = { workspace = true, optional = true }
 but-tools = { workspace = true, optional = true }
@@ -98,10 +119,9 @@ gitbutler-repo = { workspace = true, optional = true }
 gitbutler-repo-actions = { workspace = true, optional = true }
 
 schemars.workspace = true
-posthog-rs = { git = "https://github.com/gitbutlerapp/posthog-rs", rev = "664c9245f79aaedcdd025b9f3c141b62bb866b8e" }
+posthog-rs = { git = "https://github.com/gitbutlerapp/posthog-rs", rev = "664c9245f79aaedcdd025b9f3c141b62bb866b8e", optional = true }
 serde.workspace = true
 shell-words.workspace = true
-tokio = { workspace = true, features = ["rt-multi-thread", "io-std"] }
 strum = { version = "0.27", features = ["derive"] }
 clap = { workspace = true, features = [
     "env",
@@ -116,8 +136,8 @@ chrono.workspace = true
 bstr.workspace = true
 regex.workspace = true
 anyhow.workspace = true
-rmcp.workspace = true
-command-group = { version = "5.0.1", features = ["with-tokio"] }
+rmcp = { workspace = true, optional = true }
+command-group = { version = "5.0.1", features = ["with-tokio"], optional = true }
 gix = { workspace = true, features = ["tracing", "tracing-detail"] }
 colored = "3.0.0"
 serde_json.workspace = true
@@ -130,8 +150,8 @@ tracing-subscriber = { workspace = true, features = [
     "fmt",
 ] }
 tracing-forest.workspace = true
-cli-prompts.path = "vendor/cli-prompts"
-dirs.workspace = true
+cli-prompts = { path = "vendor/cli-prompts", optional = true }
+dirs = { workspace = true, optional = true }
 minus = { git = "https://github.com/arijit79/minus", rev = "57f1848f831d153a10d65060562ce1fdde938a01", default-features = false, features = [
     "static_output",
     "search",
@@ -141,7 +161,7 @@ cfg-if = "1.0.4"
 ratatui = { workspace = true, optional = true }
 crossterm = { workspace = true, optional = true }
 sha2.workspace = true
-machine-uid = "0.5.4"
+machine-uid = { version = "0.5.4", optional = true }
 tempfile.workspace = true
 nonempty.workspace = true
 itertools.workspace = true
@@ -150,6 +170,12 @@ rand.workspace = true
 ratatui-textarea = "0.8.0"
 arboard = { version = "3.6.1", default-features = false }
 ansi-to-tui = "8.0.1"
+
+[target.'cfg(not(target_os = "wasi"))'.dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "io-std"] }
+
+[target.'cfg(target_os = "wasi")'.dependencies]
+tokio = { workspace = true, features = ["rt", "io-std"] }
 
 [dev-dependencies]
 but-graph.workspace = true

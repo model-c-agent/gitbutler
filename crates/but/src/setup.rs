@@ -4,6 +4,7 @@ use std::fmt::Write;
 use but_core::sync::LockScope;
 use but_ctx::Context;
 use colored::Colorize;
+#[cfg(feature = "native")]
 use command_group::AsyncCommandGroup;
 
 use crate::{
@@ -217,6 +218,7 @@ pub fn init_ctx(
             }
 
             // Determine what needs to be synced based on intervals and lock availability
+            #[cfg(feature = "native")]
             {
                 let sync_operations =
                     determine_sync_operations(&ctx, fetch_interval_minutes, last_fetch);
@@ -322,6 +324,7 @@ fn determine_sync_operations(
 }
 
 /// Spawns a background process to perform the specified sync operations.
+#[cfg(feature = "native")]
 fn spawn_background_sync(
     args: &Args,
     out: &mut OutputChannel,
