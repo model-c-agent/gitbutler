@@ -1,6 +1,6 @@
 # Memory: wasi-gate-ctx (s09)
 
-## Status: plan-complete
+## Status: complete
 
 ## Errors & Fixes
 
