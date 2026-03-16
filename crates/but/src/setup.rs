@@ -1,5 +1,6 @@
 use std::fmt::Write;
 
+#[cfg(feature = "native")]
 use but_core::sync::LockScope;
 use but_ctx::Context;
 use colored::Colorize;
@@ -216,12 +217,14 @@ pub fn init_ctx(
             }
 
             // Determine what needs to be synced based on intervals and lock availability
-            let sync_operations =
-                determine_sync_operations(&ctx, fetch_interval_minutes, last_fetch);
+            {
+                let sync_operations =
+                    determine_sync_operations(&ctx, fetch_interval_minutes, last_fetch);
 
-            // Spawn background sync if there's anything to do
-            if sync_operations.has_work() {
-                spawn_background_sync(args, out, last_fetch, sync_operations, silent);
+                // Spawn background sync if there's anything to do
+                if sync_operations.has_work() {
+                    spawn_background_sync(args, out, last_fetch, sync_operations, silent);
+                }
             }
         }
     }
@@ -230,6 +233,7 @@ pub fn init_ctx(
 }
 
 /// Tracks which background sync operations should be performed.
+#[cfg(feature = "native")]
 #[derive(Debug)]
 struct SyncOperations {
     fetch: bool,
@@ -238,6 +242,7 @@ struct SyncOperations {
     updates: bool,
 }
 
+#[cfg(feature = "native")]
 impl SyncOperations {
     fn has_work(&self) -> bool {
         self.fetch || self.pr || self.ci || self.updates
@@ -245,6 +250,7 @@ impl SyncOperations {
 }
 
 /// Determines which sync operations should be performed based on intervals and lock availability.
+#[cfg(feature = "native")]
 fn determine_sync_operations(
     ctx: &Context,
     fetch_interval_minutes: isize,

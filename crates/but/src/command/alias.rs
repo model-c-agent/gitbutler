@@ -240,6 +240,7 @@ fn get_default_aliases() -> Vec<(String, String)> {
 }
 
 /// Add a new alias
+#[cfg(feature = "native")]
 pub fn add(
     ctx: &mut Context,
     out: &mut OutputChannel,

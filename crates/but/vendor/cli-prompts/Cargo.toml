@@ -9,6 +9,8 @@ readme = "README.md"
 categories = ["command-line-utilities"]
 
 [dependencies]
+
+[target.'cfg(not(target_os = "wasi"))'.dependencies]
 crossterm = "0.29"
 
 [lints]

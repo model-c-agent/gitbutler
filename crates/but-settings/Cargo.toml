@@ -20,10 +20,13 @@ anyhow.workspace = true
 serde.workspace = true
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 serde_json_lenient.workspace = true
-notify.workspace = true
 tracing.workspace = true
 tokio = { workspace = true, features = ["macros", "rt"] }
 ts-rs.workspace = true
+
+# Native-only deps
+[target.'cfg(not(target_os = "wasi"))'.dependencies]
+notify.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

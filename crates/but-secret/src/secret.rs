@@ -24,6 +24,7 @@ pub enum Namespace {
 }
 
 /// Persist `secret` in `namespace` so that it can be retrieved by the given `handle`.
+#[cfg(not(target_os = "wasi"))]
 pub fn persist(handle: &str, secret: &Sensitive<String>, namespace: Namespace) -> Result<()> {
     let entry = entry_for(handle, namespace)?;
     if secret.0.is_empty() {
@@ -34,7 +35,14 @@ pub fn persist(handle: &str, secret: &Sensitive<String>, namespace: Namespace) -
     Ok(())
 }
 
+/// Persist `secret` in `namespace` so that it can be retrieved by the given `handle`.
+#[cfg(target_os = "wasi")]
+pub fn persist(_handle: &str, _secret: &Sensitive<String>, _namespace: Namespace) -> Result<()> {
+    anyhow::bail!("secret persistence is not available on WASI")
+}
+
 /// Obtain the previously [stored](persist()) secret known as `handle` from `namespace`.
+#[cfg(not(target_os = "wasi"))]
 pub fn retrieve(handle: &str, namespace: Namespace) -> Result<Option<Sensitive<String>>> {
     match entry_for(handle, namespace)
         .map_err(annotate_linux_keychain)?
@@ -46,6 +54,13 @@ pub fn retrieve(handle: &str, namespace: Namespace) -> Result<Option<Sensitive<S
     }
 }
 
+/// Obtain the previously [stored](persist()) secret known as `handle` from `namespace`.
+#[cfg(target_os = "wasi")]
+pub fn retrieve(_handle: &str, _namespace: Namespace) -> Result<Option<Sensitive<String>>> {
+    Ok(None)
+}
+
+#[cfg(not(target_os = "wasi"))]
 fn annotate_linux_keychain(err: anyhow::Error) -> anyhow::Error {
     if !cfg!(target_os = "linux") {
         return err;
@@ -70,6 +85,7 @@ fn annotate_linux_keychain(err: anyhow::Error) -> anyhow::Error {
 }
 
 /// Delete the secret at `handle` permanently from `namespace`.
+#[cfg(not(target_os = "wasi"))]
 pub fn delete(handle: &str, namespace: Namespace) -> Result<()> {
     match entry_for(handle, namespace)
         .map_err(annotate_linux_keychain)?
@@ -84,10 +100,17 @@ pub fn delete(handle: &str, namespace: Namespace) -> Result<()> {
     }
 }
 
+/// Delete the secret at `handle` permanently from `namespace`.
+#[cfg(target_os = "wasi")]
+pub fn delete(_handle: &str, _namespace: Namespace) -> Result<()> {
+    Ok(())
+}
+
 /// Use this `identifier` as 'namespace' for identifying secrets.
 /// Each namespace has its own set of secrets, useful for different application versions.
 ///
 /// Note that the namespace will be `development` if `identifier` is empty (or wasn't set).
+#[cfg(not(target_os = "wasi"))]
 pub fn set_application_namespace(identifier: impl Into<String>) {
     *NAMESPACE.lock().unwrap() = identifier.into();
 
@@ -102,6 +125,14 @@ pub fn set_application_namespace(identifier: impl Into<String>) {
     }
 }
 
+/// Use this `identifier` as 'namespace' for identifying secrets.
+/// Each namespace has its own set of secrets, useful for different application versions.
+///
+/// Note that the namespace will be `development` if `identifier` is empty (or wasn't set).
+#[cfg(target_os = "wasi")]
+pub fn set_application_namespace(_identifier: impl Into<String>) {}
+
+#[cfg(not(target_os = "wasi"))]
 fn entry_for(handle: &str, namespace: Namespace) -> Result<keyring::Entry> {
     let ns = match namespace {
         Namespace::BuildKind => NAMESPACE.lock().unwrap().clone(),
@@ -117,10 +148,12 @@ fn entry_for(handle: &str, namespace: Namespace) -> Result<keyring::Entry> {
 }
 
 /// How to further specialize secrets to avoid name clashes in the globally shared keystore.
+#[cfg(not(target_os = "wasi"))]
 static NAMESPACE: Mutex<String> = Mutex::new(String::new());
 
 /// A keystore that uses git-credentials under to hood. It's useful on Systems that nag the user
 /// with popups if the underlying binary changes, and is available if `git` can be found and executed.
+#[cfg(not(target_os = "wasi"))]
 pub mod git_credentials {
     use std::{any::Any, sync::Arc};
 

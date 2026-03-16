@@ -1,12 +1,18 @@
+#[cfg(feature = "native")]
 use anyhow::Result;
 #[cfg(all(unix, not(feature = "packaged-but-distribution")))]
 use but_installer::VersionRequest;
+#[cfg(feature = "native")]
 use but_settings::AppSettings;
+#[cfg(feature = "native")]
 use but_update::{AppName, CheckUpdateStatus, check_status};
+#[cfg(feature = "native")]
 use colored::Colorize;
 
+#[cfg(feature = "native")]
 use crate::{args::update, utils::OutputChannel};
 
+#[cfg(feature = "native")]
 pub fn handle(
     cmd: update::Subcommands,
     out: &mut OutputChannel,
@@ -20,6 +26,7 @@ pub fn handle(
     }
 }
 
+#[cfg(feature = "native")]
 fn check_for_updates(out: &mut OutputChannel, app_settings: &AppSettings) -> Result<()> {
     let mut cache = but_ctx::Context::app_cache();
     let status = check_status(AppName::Cli, app_settings, &mut cache)?;
@@ -45,6 +52,7 @@ fn check_for_updates(out: &mut OutputChannel, app_settings: &AppSettings) -> Res
     Ok(())
 }
 
+#[cfg(feature = "native")]
 fn print_human_output(writer: &mut dyn std::fmt::Write, status: &CheckUpdateStatus) -> Result<()> {
     if status.up_to_date {
         writeln!(
@@ -96,6 +104,7 @@ fn print_human_output(writer: &mut dyn std::fmt::Write, status: &CheckUpdateStat
     Ok(())
 }
 
+#[cfg(feature = "native")]
 fn suppress_updates(out: &mut OutputChannel, days: u32) -> Result<()> {
     // Convert days to hours (the API uses hours)
     // Note: days is already validated to be 1-30 by clap, so no overflow possible

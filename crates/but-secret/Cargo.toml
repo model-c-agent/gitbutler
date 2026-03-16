@@ -16,8 +16,12 @@ but-error.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
 serde.workspace = true
-gix = { workspace = true, features = ["dirwalk", "credentials", "parallel"] }
+gix = { workspace = true, features = ["dirwalk"] }
+
+# Native-only deps
+[target.'cfg(not(target_os = "wasi"))'.dependencies]
 keyring.workspace = true
+gix = { workspace = true, features = ["credentials", "parallel"] }
 
 [[test]]
 name="secret"
