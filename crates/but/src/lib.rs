@@ -244,9 +244,14 @@ async fn match_subcommand(
         }
         Subcommands::Update(update_args::Platform { cmd }) => {
             #[cfg(feature = "native")]
-            { command::update::handle(cmd, out, &app_settings).emit_metrics(metrics_ctx) }
+            {
+                command::update::handle(cmd, out, &app_settings).emit_metrics(metrics_ctx)
+            }
             #[cfg(not(feature = "native"))]
-            { let _ = cmd; anyhow::bail!("The update command requires native features") }
+            {
+                let _ = cmd;
+                anyhow::bail!("The update command requires native features")
+            }
         }
         Subcommands::Help => {
             command::help::print_grouped(out)?;

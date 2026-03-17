@@ -66,8 +66,12 @@ impl WasiOutput {
     /// Parse stdout as JSON.
     #[allow(dead_code)]
     pub fn stdout_json(&self) -> serde_json::Value {
-        serde_json::from_str(&self.stdout)
-            .unwrap_or_else(|err| panic!("failed to parse stdout as JSON: {err}\nstdout: {}", self.stdout))
+        serde_json::from_str(&self.stdout).unwrap_or_else(|err| {
+            panic!(
+                "failed to parse stdout as JSON: {err}\nstdout: {}",
+                self.stdout
+            )
+        })
     }
 }
 

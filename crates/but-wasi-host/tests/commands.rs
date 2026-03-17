@@ -1,7 +1,7 @@
 #[allow(dead_code)]
 mod common;
 
-use common::{wasm_available, WasiTestFixture};
+use common::{WasiTestFixture, wasm_available};
 
 #[test]
 fn branch_list_empty_repo() {

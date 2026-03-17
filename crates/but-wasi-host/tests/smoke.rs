@@ -1,7 +1,7 @@
 #[allow(dead_code)]
 mod common;
 
-use common::{run_host_only, wasm_available, WasiTestFixture};
+use common::{WasiTestFixture, run_host_only, wasm_available};
 
 #[test]
 fn host_help_exits_zero() {
@@ -22,7 +22,9 @@ fn host_rejects_missing_repo() {
     let out = run_host_only(&["--repo", "/tmp/nonexistent-repo-path-12345"]);
     assert_ne!(out.exit_code, 0);
     assert!(
-        out.stderr.contains("error") || out.stderr.contains("not exist") || out.stderr.contains("required"),
+        out.stderr.contains("error")
+            || out.stderr.contains("not exist")
+            || out.stderr.contains("required"),
         "expected an error message, got stderr:\n{}",
         out.stderr
     );

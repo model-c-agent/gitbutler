@@ -3,7 +3,7 @@ mod common;
 
 use std::fs;
 
-use common::{wasm_available, WasiTestFixture};
+use common::{WasiTestFixture, wasm_available};
 
 /// Verify that the guest process can read a file placed inside the
 /// repository directory (the preopen path).
