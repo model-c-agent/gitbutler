@@ -28,10 +28,18 @@ You use the `but` CLI (GitButler's command-line tool) and the shell tools in `sc
 - **Branch setup:** create entire branch topologies from config (`./scripts/bin/but-setup-branches`)
 - **Change routing:** assign file changes to the correct branch based on scope
 
+### Patch Application (Primary Role in PR Workflow)
+- **Apply approved patches:** apply `INDEX.patch` from sub-PR directories to the working tree via `but`
+- **Commit with agent's message:** commit using the `COMMIT.msg` from the sub-PR directory
+- **Write results:** write `RESULTS.md` in the sub-PR directory with outcome (success: commit ID, branch; failure: error details)
+- **Dependency ordering:** apply patches in dependency order — a dependent patch assumes its dependencies are already applied
+- **Amend after feedback:** when a patch is updated post-commit, use `but absorb` + `but reword`
+
 ### Agent Support
 - Accept requests from other agents to commit, branch, or push
+- The sole entity that modifies the working tree and creates commits — no other agent uses `but`
 - Translate high-level intents ("commit these serde changes to the objectid branch") into `but` commands
-- Report conflicts, merge issues, or workspace problems back to the requesting agent
+- Report conflicts, merge issues, or workspace problems via `RESULTS.md`
 
 ## Tools
 
@@ -80,6 +88,18 @@ Other agents communicate with you through files in this directory:
 - **Issues:** you log problems in `ISSUES.md` for the user
 
 When operating as part of a PR workflow, follow the protocols in [PR.md](../../.github/prs/PR.md).
+
+### Patch Workflow Protocol
+
+When the coordinator signals that a sub-PR's patch is approved:
+1. Read `INDEX.patch` from the sub-PR directory
+2. Apply the patch to the working tree using `but`
+3. Create the branch if needed using `but branch new`
+4. Commit using the `COMMIT.msg` from the sub-PR directory
+5. Write `RESULTS.md` in the sub-PR directory with the outcome:
+   - **On success:** commit ID, branch name, verification status
+   - **On failure:** error message, what went wrong, what the sub-PR agent should fix
+6. Never use `git` directly — all operations through `but`
 
 ## Anti-Patterns
 

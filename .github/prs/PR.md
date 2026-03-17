@@ -435,7 +435,7 @@ Branches are created **on demand** when an agent enters Phase 2 (Implementation)
 1. **One branch per sub-PR.** Branch name = `pr<num>/` + folder path.
 2. **Branches created on demand.** When an agent starts implementation, it creates its branch.
 3. **Stacking via `--anchor`:** The dependency prefix in the branch name tells you where to anchor. If the dependency's branch exists, stack on it. If not (dependency already committed to `feat/wasi`), anchor on `feat/wasi`.
-4. **One commit per sub-PR.** Agent amends as they go. Commit message = INDEX.md summary.
+4. **One commit per sub-PR.** The `but` agent commits using `COMMIT.msg` from the sub-PR directory.
 
 ### Parallelization Rules
 
@@ -443,16 +443,19 @@ Not all lifecycle steps require sequential execution. The safety of parallelizat
 
 | Step | Parallel? | Why |
 |------|-----------|-----|
-| **Step 1: Plan** | **Yes** — safe to run in parallel | Planning agents are read-only against the codebase. Each writes only to its own `.github/prs/<N>/<sub-pr>/` directory (INDEX.md, QUESTIONS.md, MEMORY.md). No branches, no code changes, no staging conflicts. |
-| **Step 2: Plan Review** | **Yes** — coordinator can batch-review | Reviewing multiple plans is just reading files. Answering questions in each sub-PR's QUESTIONS.md doesn't conflict. |
-| **Step 3: Implement** | **No** — one at a time | Implementation agents create branches, stage files, and commit. The shared `but` workspace means concurrent staging/commits cause hunk lock collisions and commit ID shifts. |
-| **Step 4-5: Review/Feedback** | **No** — follows implementation | Tied to the implementation agent's work. |
+| **Step 1: Plan** | **Yes** | Planning agents are read-only. Each writes only to its own directory. |
+| **Step 2: Plan Review** | **Yes** | Reviewing plans is just reading files. |
+| **Step 3: Implement** | **Yes** | Agents produce `INDEX.patch` + `COMMIT.msg` in their own directory. No branches, no staging, no working tree changes. |
+| **Step 4-5: Review/Feedback** | **Yes** | Reviewing patches is reading files. Feedback goes to each agent's own QUESTIONS.md. |
+| **Step 6: Apply & Commit** | **No** | The `but` agent applies patches sequentially. Must respect dependency order. |
 
-**When to parallelize planning:** Spawn planning agents for all unblocked sub-PRs simultaneously when their dependencies are met. For example, if s01 is done and s05-s08 all depend only on s01, spawn all four planning agents at once.
+**When to parallelize planning:** Spawn planning agents for all unblocked sub-PRs simultaneously when their dependencies are met.
 
-**Batch review before implementation:** When multiple planning agents run in parallel, wait for ALL to complete before approving ANY for implementation. Plans frequently reveal cross-cutting concerns — shared Cargo.toml lines, scope overlaps, implicit dependency ordering — that can only be resolved when all plans are visible. The coordinator batch-reviews all plans, adjusts scope boundaries and dependencies, answers questions across plans, then determines implementation order.
+**When to parallelize implementation:** After batch plan review, spawn implementation agents for all approved sub-PRs. Since agents produce patches (not file mutations), they can all work simultaneously. Agents with dependencies must read their dependency's `INDEX.patch` to layer changes correctly.
 
-**When NOT to parallelize:** Never run more than one implementation agent at a time. Always wait for one implementation to complete (Step 6) before starting the next. Never start implementation while planning agents are still running.
+**Batch review before applying:** When multiple implementation agents complete, the coordinator/reviewer batch-reviews all patches. Once approved, the `but` agent applies them sequentially in dependency order.
+
+**When NOT to parallelize:** Never apply more than one patch at a time. Patches must be applied in dependency order — a dependent patch's context lines assume its dependencies have already been applied.
 
 ### Deriving the Anchor
 
@@ -469,20 +472,13 @@ but branch new pr1/s02.s09/feat/wasi-gate-ctx -a pr1/s01.s02/feat/wasi-serde-obj
 
 ### Single Commit Workflow
 
-Each sub-PR is **one commit**. The agent amends this commit as they work:
+Each sub-PR is **one commit**. The `but` agent creates this commit from the approved `INDEX.patch` and `COMMIT.msg`. All operations go through `but` — never use `git` directly.
 
-```bash
-# First commit
-but commit <branch> -m "<INDEX.md summary>" --json --status-after
+The `but` agent determines the right approach for applying the patch and creating the branch. It writes results (success or failure, commit ID, branch name) to `RESULTS.md` in the sub-PR directory.
 
-# Subsequent changes — amend into the same commit
-but absorb
+If the patch needs updating after commit (e.g., review found an issue post-apply), the sub-PR agent regenerates `INDEX.patch` and `COMMIT.msg`, and the `but` agent amends via `but absorb` + `but reword`.
 
-# Update message as understanding evolves
-but reword <commit-id> -m "<summary>"
-```
-
-The commit message should match the INDEX.md summary. This keeps history clean: reviewing a sub-PR = reviewing one commit.
+The `COMMIT.msg` is the source of truth for what the commit says. This keeps history clean: reviewing a sub-PR = reviewing one commit = reading one `COMMIT.msg`.
 
 ### Execution Order
 
@@ -492,20 +488,23 @@ When batch review reveals that sub-PRs modify the same files (e.g., the `native`
 
 ## Conventions
 
-- **One commit per sub-PR** — amend as you go, don't accumulate commits
+- **One commit per sub-PR** — the `but` agent creates it from `INDEX.patch` + `COMMIT.msg`
+- **Agents produce artifacts, not mutations** — sub-PR agents write only to their own directory
+- **`COMMIT.msg` is the source of truth** — for the commit message and eventual PR description
+- **All VCS through `but`** — never use `git` directly, not even for patch application
 - Keep sub-PRs small and focused — one concern per PR
-- Commit message = INDEX.md summary (keep in sync via `but reword`)
 - Don't leak scope between sub-PRs
 - If a sub-PR uncovers work that belongs to another sub-PR, note it in MEMORY.md and move on
 - Prefer compilation errors over runtime errors when gating features (use `#[cfg]` and cargo features)
 - Always update MEMORY.md before ending a work session
+- When layering on dependencies, read their `INDEX.patch` to know what the working tree will look like
 
 ## Anti-Patterns
 
+- Do NOT modify source files directly from a sub-PR agent — produce `INDEX.patch` instead
+- Do NOT use `git` from any agent — only the `but` agent uses `but` for workspace operations
 - Do NOT answer a question you're unsure about — escalate instead
 - Do NOT ignore `Blocking: yes` questions — they halt progress
-- Do NOT allow sub-PRs to accumulate multiple commits — remind agents to amend
 - Do NOT modify INDEX.md scope without user approval
-- Do NOT launch implementation before the plan is approved
-- Do NOT launch implementation while parallel planning agents are still running — wait for all plans
+- Do NOT apply patches out of dependency order — context lines will mismatch
 - Do NOT combine planning and implementation into one agent spawn
