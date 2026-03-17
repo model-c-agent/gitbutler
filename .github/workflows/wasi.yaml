@@ -1,0 +1,72 @@
+name: "WASI"
+on:
+  push:
+    branches:
+      - feat/wasi
+      - pr1/**
+  pull_request:
+    branches:
+      - feat/wasi
+      - pr1/**
+
+env:
+  RUST_BACKTRACE: full
+  CARGO_TERM_COLOR: always
+  # RUSTC_BOOTSTRAP=1 is needed because wasm32-wasip2 target support requires
+  # nightly-only -Z flags for some crate compilations (e.g. -Zbuild-std).
+  RUSTC_BOOTSTRAP: 1
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  wasi-build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Add wasm32-wasip2 target
+        run: rustup target add wasm32-wasip2
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+        with:
+          shared-key: wasi-build
+          save-if: ${{ github.ref == 'refs/heads/feat/wasi' }}
+      - name: Install Wasmtime
+        uses: bytecodealliance/actions/wasmtime/setup@9152e710e9f7182e4c29ad218e4f335a7b203613 # v1
+      - name: Build but.wasm (debug)
+        run: cargo build --locked -p but --no-default-features --features wasi --target wasm32-wasip2
+      - name: Build but-wasi-host
+        run: cargo build --locked -p but-wasi-host
+      - name: Run WASI integration tests
+        env:
+          WASI_WASM_PATH: target/wasm32-wasip2/debug/but.wasm
+        run: cargo test --locked -p but-wasi-host
+      - name: Build but.wasm (release)
+        run: cargo build --locked -p but --no-default-features --features wasi --target wasm32-wasip2 --release
+      - name: Check binary size
+        run: |
+          WASM_PATH="target/wasm32-wasip2/release/but.wasm"
+          SIZE_BYTES=$(stat -c%s "$WASM_PATH")
+          SIZE_MB=$(echo "scale=2; $SIZE_BYTES / 1048576" | bc)
+          echo "### WASI Binary Size" >> $GITHUB_STEP_SUMMARY
+          echo "but.wasm release: ${SIZE_MB} MB (${SIZE_BYTES} bytes)" >> $GITHUB_STEP_SUMMARY
+          # Current size is ~3 MB; budget set to 8 MB to catch regressions early
+          MAX_BYTES=8388608
+          if [ "$SIZE_BYTES" -gt "$MAX_BYTES" ]; then
+            echo "::error::but.wasm exceeds 8 MB size budget (${SIZE_MB} MB)"
+            exit 1
+          fi
+      - name: Upload but.wasm artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: "but-wasm-${{ github.run_number }}"
+          path: target/wasm32-wasip2/release/but.wasm
+          if-no-files-found: error
+          retention-days: 7
