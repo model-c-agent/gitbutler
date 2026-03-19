@@ -1,0 +1,344 @@
+diff --git a/crates/but/src/args/sync.rs b/crates/but/src/args/sync.rs
+new file mode 100644
+index 0000000..1234567
+--- /dev/null
++++ b/crates/but/src/args/sync.rs
+@@ -0,0 +1,30 @@
++/// Arguments for sync management commands.
++#[derive(Debug, clap::Parser)]
++pub struct Platform {
++    #[clap(subcommand)]
++    pub cmd: Subcommands,
++}
++
++#[derive(Debug, clap::Subcommand)]
++pub enum Subcommands {
++    /// Pause background sync temporarily.
++    ///
++    /// Creates a marker file that tells GitButler to skip background sync
++    /// operations (fetch, PR refresh, CI checks). The pause auto-expires
++    /// after the specified duration (default: 1 hour).
++    Pause {
++        /// How long to pause sync. Accepts formats like "30m", "2h", "1h30m", "90m".
++        /// Default: 1h
++        #[clap(long, short = 'd', default_value = "1h")]
++        duration: String,
++    },
++    /// Resume background sync.
++    ///
++    /// Removes the sync pause marker, allowing background sync to proceed
++    /// on the next command that triggers it.
++    Resume,
++    /// Show whether background sync is currently paused.
++    ///
++    /// Displays the current sync state and, if paused, how much time
++    /// remains before the pause auto-expires.
++    Status,
++}
+diff --git a/crates/but/src/command/sync.rs b/crates/but/src/command/sync.rs
+new file mode 100644
+index 0000000..2345678
+--- /dev/null
++++ b/crates/but/src/command/sync.rs
+@@ -0,0 +1,134 @@
++//! Implementation of `but sync pause/resume/status` commands.
++//!
++//! Uses a marker file at `<gitdir>/gitbutler/sync-paused` to signal
++//! that background sync should be skipped. The marker contains a JSON
++//! object with `paused_at` and `expires_at` Unix timestamps.
++
++use std::fmt::Write;
++use std::path::{Path, PathBuf};
++
++use anyhow::{Context as _, Result};
++
++use crate::utils::OutputChannel;
++
++/// JSON structure stored in the marker file.
++#[derive(serde::Serialize, serde::Deserialize, Debug)]
++struct SyncPauseMarker {
++    paused_at: u64,
++    expires_at: u64,
++}
++
++/// Return the path to the sync-paused marker file for a given gitdir.
++pub fn marker_path(gitdir: &Path) -> PathBuf {
++    gitdir.join("gitbutler").join("sync-paused")
++}
++
++/// Check whether sync is currently paused (marker exists and not expired).
++/// Returns `true` if paused, `false` if not paused or expired.
++/// Silently removes expired markers.
++pub fn is_sync_paused(gitdir: &Path) -> bool {
++    let path = marker_path(gitdir);
++    let content = match std::fs::read_to_string(&path) {
++        Ok(c) => c,
++        Err(_) => return false,
++    };
++    let marker: SyncPauseMarker = match serde_json::from_str(&content) {
++        Ok(m) => m,
++        Err(_) => return false,
++    };
++
++    let now = std::time::SystemTime::now()
++        .duration_since(std::time::UNIX_EPOCH)
++        .map(|d| d.as_secs())
++        .unwrap_or(0);
++
++    if marker.expires_at <= now {
++        // Expired — clean up the stale marker
++        let _ = std::fs::remove_file(&path);
++        false
++    } else {
++        true
++    }
++}
++
++/// Parse a human-friendly duration string like "30m", "2h", "1h30m", "90m".
++/// Returns duration in seconds.
++fn parse_duration(s: &str) -> Result<u64> {
++    let s = s.trim();
++    let mut total_secs: u64 = 0;
++    let mut current_num = String::new();
++
++    for ch in s.chars() {
++        if ch.is_ascii_digit() {
++            current_num.push(ch);
++        } else {
++            let n: u64 = current_num
++                .parse()
++                .with_context(|| format!("Invalid duration: '{s}'"))?;
++            current_num.clear();
++            match ch {
++                'h' | 'H' => total_secs += n * 3600,
++                'm' | 'M' => total_secs += n * 60,
++                's' | 'S' => total_secs += n,
++                _ => anyhow::bail!("Unknown duration unit '{ch}' in '{s}'. Use h, m, or s."),
++            }
++        }
++    }
++
++    // If there's a trailing number with no unit, treat as minutes
++    if !current_num.is_empty() {
++        let n: u64 = current_num
++            .parse()
++            .with_context(|| format!("Invalid duration: '{s}'"))?;
++        total_secs += n * 60;
++    }
++
++    if total_secs == 0 {
++        anyhow::bail!("Duration must be greater than zero.");
++    }
++    Ok(total_secs)
++}
++
++/// Handle `but sync pause --duration <dur>`.
++pub fn pause(gitdir: &Path, out: &mut OutputChannel, duration_str: &str) -> Result<()> {
++    let duration_secs = parse_duration(duration_str)?;
++    let now = std::time::SystemTime::now()
++        .duration_since(std::time::UNIX_EPOCH)?
++        .as_secs();
++
++    let marker = SyncPauseMarker {
++        paused_at: now,
++        expires_at: now + duration_secs,
++    };
++
++    let path = marker_path(gitdir);
++    // Ensure parent directory exists
++    if let Some(parent) = path.parent() {
++        std::fs::create_dir_all(parent)?;
++    }
++    let json = serde_json::to_string_pretty(&marker)?;
++    std::fs::write(&path, json)?;
++
++    let display_dur = format_duration(duration_secs);
++    writeln!(out, "Background sync paused for {display_dur}.")?;
++    Ok(())
++}
++
++/// Handle `but sync resume`.
++pub fn resume(gitdir: &Path, out: &mut OutputChannel) -> Result<()> {
++    let path = marker_path(gitdir);
++    if path.exists() {
++        std::fs::remove_file(&path)?;
++        writeln!(out, "Background sync resumed.")?;
++    } else {
++        writeln!(out, "Background sync is not paused.")?;
++    }
++    Ok(())
++}
++
++/// Handle `but sync status`.
++pub fn status(gitdir: &Path, out: &mut OutputChannel) -> Result<()> {
++    let path = marker_path(gitdir);
++    let content = std::fs::read_to_string(&path);
++    let marker: Option<SyncPauseMarker> =
++        content.ok().and_then(|c| serde_json::from_str(&c).ok());
++
++    match marker {
++        Some(m) => {
++            let now = std::time::SystemTime::now()
++                .duration_since(std::time::UNIX_EPOCH)?
++                .as_secs();
++            if m.expires_at <= now {
++                let _ = std::fs::remove_file(&path);
++                writeln!(out, "Background sync is active.")?;
++            } else {
++                let remaining = m.expires_at.saturating_sub(now);
++                let display_remaining = format_duration(remaining);
++                writeln!(
++                    out,
++                    "Background sync is paused. Resumes in {display_remaining}."
++                )?;
++            }
++        }
++        None => {
++            writeln!(out, "Background sync is active.")?;
++        }
++    }
++    Ok(())
++}
++
++/// Format seconds into a human-friendly string like "1h 30m" or "45m".
++fn format_duration(secs: u64) -> String {
++    let hours = secs / 3600;
++    let minutes = (secs % 3600) / 60;
++    match (hours, minutes) {
++        (0, m) => format!("{m}m"),
++        (h, 0) => format!("{h}h"),
++        (h, m) => format!("{h}h {m}m"),
++    }
++}
+diff --git a/crates/but/src/args/mod.rs b/crates/but/src/args/mod.rs
+index abcdef1..abcdef2 100644
+--- a/crates/but/src/args/mod.rs
++++ b/crates/but/src/args/mod.rs
+@@ -1070,6 +1070,30 @@ pub enum Subcommands {
+     #[clap(hide = true)]
+     Onboarding,
+
++    /// Manage background sync behavior.
++    ///
++    /// Pause, resume, or check the status of GitButler's background sync.
++    /// When paused, GitButler will not automatically fetch from remotes,
++    /// refresh pull request data, or check CI status.
++    ///
++    /// Pause auto-expires after 1 hour by default to prevent forgotten pauses.
++    ///
++    /// ## Examples
++    ///
++    /// Pause background sync for the default duration (1 hour):
++    ///
++    /// ```text
++    /// but sync pause
++    /// ```
++    ///
++    /// Pause for a specific duration:
++    ///
++    /// ```text
++    /// but sync pause --duration 30m
++    /// ```
++    ///
++    #[clap(verbatim_doc_comment)]
++    Sync(sync::Platform),
++
+     /// AI: Claude Code hook for workspace awareness and skill activation.
+     ///
+     /// Outputs workspace status as JSON and a skill-loading nudge.
+@@ -1085,6 +1109,7 @@ pub mod link;
+ pub mod skill;
+ pub mod update;
+
++pub mod sync;
+ pub mod actions {
+     #[derive(Debug, clap::Parser)]
+     pub struct Platform {
+diff --git a/crates/but/src/command/mod.rs b/crates/but/src/command/mod.rs
+index abcdef3..abcdef4 100644
+--- a/crates/but/src/command/mod.rs
++++ b/crates/but/src/command/mod.rs
+@@ -16,6 +16,7 @@ pub mod push;
+ #[cfg(feature = "native")]
+ pub mod skill;
+ pub mod update;
++pub mod sync;
+
+diff --git a/crates/but/src/lib.rs b/crates/but/src/lib.rs
+index abcdef5..abcdef6 100644
+--- a/crates/but/src/lib.rs
++++ b/crates/but/src/lib.rs
+@@ -30,7 +30,7 @@
+ pub mod args;
+ use args::{
+     Args, OutputFormat, Subcommands, actions, alias as alias_args, branch, claude, cursor, forge,
+-    metrics, update as update_args, worktree,
++    metrics, sync as sync_args, update as update_args, worktree,
+ };
+ use but_settings::AppSettings;
+ use colored::Colorize;
+@@ -258,6 +258,18 @@ async fn match_subcommand(
+             command::eval_hook::execute();
+             Ok(())
+         }
++        Subcommands::Sync(sync_args::Platform { cmd }) => {
++            let ctx = setup::init_ctx(&args, InitCtxOptions::default(), out)?;
++            match cmd {
++                sync_args::Subcommands::Pause { duration } => {
++                    command::sync::pause(&ctx.gitdir, out, &duration).emit_metrics(metrics_ctx)
++                }
++                sync_args::Subcommands::Resume => {
++                    command::sync::resume(&ctx.gitdir, out).emit_metrics(metrics_ctx)
++                }
++                sync_args::Subcommands::Status => {
++                    command::sync::status(&ctx.gitdir, out).emit_metrics(metrics_ctx)
++                }
++            }
++        }
+         Subcommands::Alias(alias_args::Platform { cmd }) => {
+             let mut ctx = but_ctx::Context::discover(&args.current_dir)?;
+diff --git a/crates/but/src/setup.rs b/crates/but/src/setup.rs
+index abcdef7..abcdef8 100644
+--- a/crates/but/src/setup.rs
++++ b/crates/but/src/setup.rs
+@@ -212,6 +212,11 @@ pub fn init_ctx(
+             if !matches!(out.format(), crate::args::OutputFormat::Human) {
+                 return Ok(ctx);
+             }
++
++            // Check if sync is paused via marker file
++            if crate::command::sync::is_sync_paused(&ctx.gitdir) {
++                return Ok(ctx);
++            }
+
+             // Determine what needs to be synced based on intervals and lock availability
+             #[cfg(feature = "native")]
+diff --git a/crates/but/src/command/legacy/refresh.rs b/crates/but/src/command/legacy/refresh.rs
+index abcdef9..abcdefa 100644
+--- a/crates/but/src/command/legacy/refresh.rs
++++ b/crates/but/src/command/legacy/refresh.rs
+@@ -11,6 +11,12 @@ pub fn handle(
+     updates: bool,
+     app_settings: &but_settings::AppSettings,
+ ) -> anyhow::Result<()> {
++    // Safety net: check if sync is paused via marker file.
++    // This catches the case where the background process was already spawned
++    // before the user ran `but sync pause`.
++    if crate::command::sync::is_sync_paused(&ctx.gitdir) {
++        return Ok(());
++    }
+     // Obtain a lock to prevent concurrent background refreshes of remote data
+     // Only acquire this lock if we're actually performing remote data operations
+     let _exclusive_access = if fetch || prs || ci {
+diff --git a/crates/but/src/utils/metrics.rs b/crates/but/src/utils/metrics.rs
+index abcdefb..abcdefc 100644
+--- a/crates/but/src/utils/metrics.rs
++++ b/crates/but/src/utils/metrics.rs
+@@ -204,6 +204,7 @@ impl Subcommands {
+             #[cfg(feature = "native")]
+             Subcommands::Link(link::Platform { .. }) => Unknown,
+             Subcommands::Onboarding | Subcommands::EvalHook => Unknown,
++            Subcommands::Sync(..) => Unknown,
+         }
+     }
+ }

@@ -1,0 +1,222 @@
+diff --git a/crates/but/src/args/mod.rs b/crates/but/src/args/mod.rs
+index 1234567..abcdefg 100644
+--- a/crates/but/src/args/mod.rs
++++ b/crates/but/src/args/mod.rs
+@@ -189,6 +189,9 @@
+     Diff {
+         /// The CLI ID of the entity to show the diff for
+         target: Option<String>,
++        /// Only show the names of changed files, not the full diff
++        #[clap(long = "name-only", conflicts_with_all = ["tui", "no_tui"])]
++        name_only: bool,
+         /// Open an interactive TUI diff viewer
+         #[clap(long = "tui", conflicts_with = "no_tui")]
+         tui: bool,
+diff --git a/crates/but/src/lib.rs b/crates/but/src/lib.rs
+index 1234567..abcdefg 100644
+--- a/crates/but/src/lib.rs
++++ b/crates/but/src/lib.rs
+@@ -540,6 +540,7 @@
+         Subcommands::Diff {
+             target,
++            name_only,
+             tui,
+             no_tui,
+         } => {
+@@ -571,1 +572,1 @@
+-                command::legacy::diff::handle(&mut ctx, out, target.as_deref())
++                command::legacy::diff::handle(&mut ctx, out, target.as_deref(), name_only)
+diff --git a/crates/but/src/command/legacy/diff/mod.rs b/crates/but/src/command/legacy/diff/mod.rs
+index 1234567..abcdefg 100644
+--- a/crates/but/src/command/legacy/diff/mod.rs
++++ b/crates/but/src/command/legacy/diff/mod.rs
+@@ -56,6 +56,7 @@
+ pub fn handle(
+     ctx: &mut Context,
+     out: &mut OutputChannel,
+     target_str: Option<&str>,
++    name_only: bool,
+ ) -> anyhow::Result<()> {
+     let wt_changes = but_api::legacy::diff::changes_in_worktree(ctx)?;
+     let id_map = IdMap::new_from_context(ctx, Some(wt_changes.assignments.clone()))?;
+@@ -71,17 +72,17 @@
+         match id {
+-            CliId::Uncommitted(id) => show::worktree(id_map, out, Some(Filter::Uncommitted(id))),
++            CliId::Uncommitted(id) => show::worktree(id_map, out, Some(Filter::Uncommitted(id)), name_only),
+             CliId::PathPrefix {
+                 hunk_assignments, ..
+-            } => show::hunk_assignments(&hunk_assignments, out),
+-            CliId::Unassigned { .. } => show::worktree(id_map, out, Some(Filter::Unassigned)),
++            } => show::hunk_assignments(&hunk_assignments, out, name_only),
++            CliId::Unassigned { .. } => show::worktree(id_map, out, Some(Filter::Unassigned), name_only),
+             CliId::CommittedFile {
+                 commit_id, path, ..
+-            } => show::commit(ctx, out, commit_id, Some(path)),
+-            CliId::Branch { name, .. } => show::branch(ctx, out, name),
+-            CliId::Commit { commit_id: id, .. } => show::commit(ctx, out, id, None),
++            } => show::commit(ctx, out, commit_id, Some(path), name_only),
++            CliId::Branch { name, .. } => show::branch(ctx, out, name, name_only),
++            CliId::Commit { commit_id: id, .. } => show::commit(ctx, out, id, None, name_only),
+             CliId::Stack { id: _, stack_id } => {
+-                show::worktree(id_map, out, Some(Filter::Stack(stack_id)))
++                show::worktree(id_map, out, Some(Filter::Stack(stack_id)), name_only)
+             }
+         }
+     } else {
+-        show::worktree(id_map, out, None)
++        show::worktree(id_map, out, None, name_only)
+     }
+ }
+@@ -91,6 +92,12 @@
+ // JSON output structures
+
++#[derive(Debug, Serialize)]
++struct JsonNameOnly {
++    files: Vec<String>,
++}
++
+ #[derive(Debug, Serialize)]
+ #[serde(rename_all = "camelCase")]
+ struct JsonDiffOutput {
+diff --git a/crates/but/src/command/legacy/diff/show.rs b/crates/but/src/command/legacy/diff/show.rs
+index 1234567..abcdefg 100644
+--- a/crates/but/src/command/legacy/diff/show.rs
++++ b/crates/but/src/command/legacy/diff/show.rs
+@@ -1,6 +1,7 @@
+ use bstr::BString;
+ use but_api::diff::ComputeLineStats;
+ use but_core::{UnifiedPatch, unified_diff::DiffHunk};
+ use but_ctx::Context;
+ use but_hunk_assignment::HunkAssignment;
+ use gitbutler_stack::StackId;
++use std::collections::HashSet;
+
+ use super::{
+-    JsonChange, JsonDiff, JsonDiffOutput, JsonHunk,
++    JsonChange, JsonDiff, JsonDiffOutput, JsonHunk, JsonNameOnly,
+     display::{DiffDisplay, TreeChangeWithPatch},
+ };
+@@ -21,6 +22,7 @@
+ pub(crate) fn worktree(
+     id_map: IdMap,
+     out: &mut OutputChannel,
+     filter: Option<Filter>,
++    name_only: bool,
+ ) -> anyhow::Result<()> {
+     let short_id_assignment_pairs: Vec<(&str, &HunkAssignment)> = id_map
+         .uncommitted_hunks
+@@ -44,10 +46,11 @@
+         .map(|(short_id, uncommitted_hunk)| (short_id.as_str(), &uncommitted_hunk.hunk_assignment))
+         .collect();
+-    print_short_id_assignment_pairs(short_id_assignment_pairs, out)
++    print_short_id_assignment_pairs(short_id_assignment_pairs, out, name_only)
+ }
+
+ pub(crate) fn hunk_assignments<'a>(
+     hunk_assignments: impl IntoIterator<Item = &'a (String, HunkAssignment)>,
+     out: &mut OutputChannel,
++    name_only: bool,
+ ) -> anyhow::Result<()> {
+     let short_id_assignment_pairs: Vec<(&str, &HunkAssignment)> = hunk_assignments
+@@ -55,10 +58,11 @@
+         .map(|(short_id, hunk_assignment)| (short_id.as_str(), hunk_assignment))
+         .collect();
+-    print_short_id_assignment_pairs(short_id_assignment_pairs, out)
++    print_short_id_assignment_pairs(short_id_assignment_pairs, out, name_only)
+ }
+
+ fn print_short_id_assignment_pairs<'a>(
+     mut short_id_assignment_pairs: Vec<(&'a str, &'a HunkAssignment)>,
+     out: &mut OutputChannel,
++    name_only: bool,
+ ) -> anyhow::Result<()> {
+     short_id_assignment_pairs.sort_by(|(_, a_assignment), (_, b_assignment)| {
+@@ -74,6 +78,25 @@
+             })
+     });
+
++    if name_only {
++        let mut seen = HashSet::new();
++        let paths: Vec<&str> = short_id_assignment_pairs
++            .iter()
++            .filter_map(|(_, a)| {
++                if seen.insert(a.path.as_str()) {
++                    Some(a.path.as_str())
++                } else {
++                    None
++                }
++            })
++            .collect();
++
++        if let Some(json_out) = out.for_json() {
++            json_out.write_value(JsonNameOnly {
++                files: paths.iter().map(|p| p.to_string()).collect(),
++            })?;
++        } else if let Some(out) = out.for_human_or_shell() {
++            for path in &paths {
++                writeln!(out, "{path}")?;
++            }
++        }
++        return Ok(());
++    }
++
+     if short_id_assignment_pairs.is_empty() {
+         if let Some(json_out) = out.for_json() {
+@@ -99,6 +122,7 @@
+ pub(crate) fn commit(
+     ctx: &mut Context,
+     out: &mut OutputChannel,
+     id: gix::ObjectId,
+     path: Option<BString>,
++    name_only: bool,
+ ) -> anyhow::Result<()> {
+     let result = but_api::diff::commit_details(ctx, id, ComputeLineStats::No)?;
+
++    if name_only {
++        let paths: Vec<String> = result
++            .diff_with_first_parent
++            .iter()
++            .filter(|change| path.as_ref().is_none_or(|p| p == &change.path))
++            .map(|change| change.path.to_string())
++            .collect();
++
++        if let Some(json_out) = out.for_json() {
++            json_out.write_value(JsonNameOnly { files: paths })?;
++        } else if let Some(out) = out.for_human_or_shell() {
++            for p in &paths {
++                writeln!(out, "{p}")?;
++            }
++        }
++        return Ok(());
++    }
++
+     if let Some(json_out) = out.for_json() {
+         let changes: Vec<JsonChange> = result
+@@ -136,6 +160,7 @@
+ pub(crate) fn branch(
+     ctx: &Context,
+     out: &mut OutputChannel,
+     short_name: String,
++    name_only: bool,
+ ) -> anyhow::Result<()> {
+     let result = but_api::branch::branch_diff(ctx, short_name)?;
+
++    if name_only {
++        let paths: Vec<String> = result
++            .changes
++            .iter()
++            .map(|change| change.path_bytes.to_string())
++            .collect();
++
++        if let Some(json_out) = out.for_json() {
++            json_out.write_value(JsonNameOnly { files: paths })?;
++        } else if let Some(out) = out.for_human_or_shell() {
++            for p in &paths {
++                writeln!(out, "{p}")?;
++            }
++        }
++        return Ok(());
++    }
++
+     if let Some(json_out) = out.for_json() {
+         let changes: Vec<JsonChange> = result

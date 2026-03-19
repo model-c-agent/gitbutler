@@ -1,0 +1,284 @@
+diff --git a/crates/but-hunk-assignment/src/lib.rs b/crates/but-hunk-assignment/src/lib.rs
+--- a/crates/but-hunk-assignment/src/lib.rs
++++ b/crates/but-hunk-assignment/src/lib.rs
+@@ -835,6 +835,11 @@ impl CommitMap {
+     pub fn add_mapping(&mut self, old_commit_id: ObjectId, new_commit_id: ObjectId) {
+         self.map.insert(old_commit_id, new_commit_id);
+     }
++
++    /// Returns a reference to the underlying old-to-new commit ID mappings
++    pub fn mappings(&self) -> &HashMap<ObjectId, ObjectId> {
++        &self.map
++    }
+ }
+
+ /// Type alias for grouped changes by commit
+diff --git a/crates/but-api/src/legacy/absorb.rs b/crates/but-api/src/legacy/absorb.rs
+--- a/crates/but-api/src/legacy/absorb.rs
++++ b/crates/but-api/src/legacy/absorb.rs
+@@ -43,7 +43,8 @@ pub fn absorb(ctx: &mut Context, absorption_plan: Vec<CommitAbsorption>) -> anyh
+         .ok(); // Ignore errors for snapshot creation
+
+-    absorb_impl(absorption_plan, &mut guard, &repo, &data_dir)
++    let (total_rejected, _commit_map) = absorb_impl(absorption_plan, &mut guard, &repo, &data_dir)?;
++    Ok(total_rejected)
+ }
+
+ pub fn absorb_impl(
+@@ -52,7 +53,7 @@ pub fn absorb_impl(
+     guard: &mut RepoExclusiveGuard,
+     repo: &gix::Repository,
+     data_dir: &Path,
+-) -> anyhow::Result<usize> {
++) -> anyhow::Result<(usize, CommitMap)> {
+     // Apply each group to its target commit and track failures
+     let mut total_rejected = 0;
+     let mut commit_map = CommitMap::default();
+@@ -78,7 +79,7 @@ pub fn absorb_impl(
+         total_rejected += outcome.paths_to_rejected_changes.len();
+     }
+-    Ok(total_rejected)
++    Ok((total_rejected, commit_map))
+ }
+
+ /// Generate an absorption plan based on the provided target, based on hunk dependencies, assingments and other heuristics
+diff --git a/crates/but-action/src/auto_commit.rs b/crates/but-action/src/auto_commit.rs
+--- a/crates/but-action/src/auto_commit.rs
++++ b/crates/but-action/src/auto_commit.rs
+@@ -84,14 +84,14 @@ pub(crate) fn auto_commit(
+     match apply_commit_changes(
+         Some(project_id.clone()),
+         repo,
+         project_data_dir,
+         context_lines,
+         llm,
+         absorption_plan,
+         guard,
+         commit_map,
+         Some(emitter.clone()),
+     ) {
+         Err(e) => {
+             tracing::error!("Auto-commit failed: {}", e);
+             let event = AutoCommitEvent::CommitError {
+                 error_message: e.to_string(),
+             };
+             let event_name = event.event_name(&project_id);
+             let emitter = emitter.clone();
+             emitter(&event_name, event.emit_payload());
+             Err(e)
+         }
+-        Ok(number_of_rejections) => {
++        Ok((number_of_rejections, _commit_map)) => {
+             let event = AutoCommitEvent::Completed;
+             let event_name = event.event_name(&project_id);
+             let emitter = emitter.clone();
+             emitter(&event_name, event.emit_payload());
+             Ok(number_of_rejections)
+         }
+     }
+ }
+@@ -115,14 +115,15 @@ pub(crate) fn auto_commit_simple(
+     llm: Option<&but_llm::LLMProvider>,
+     absorption_plan: Vec<but_hunk_assignment::CommitAbsorption>,
+     guard: &mut RepoExclusiveGuard,
+-) -> anyhow::Result<usize> {
++) -> anyhow::Result<(usize, CommitMap)> {
+     let commit_map = CommitMap::default();
+
+-    apply_commit_changes(
++    let (total_rejected, commit_map) = apply_commit_changes(
+         None,
+         repo,
+         project_data_dir,
+         context_lines,
+         llm,
+         absorption_plan,
+         guard,
+         commit_map,
+         None,
+-    )
++    )?;
++    Ok((total_rejected, commit_map))
+ }
+
+ #[allow(clippy::too_many_arguments)]
+@@ -148,7 +149,7 @@ fn apply_commit_changes(
+     mut commit_map: CommitMap,
+     emitter: Option<std::sync::Arc<AutoCommitEmitter>>,
+-) -> anyhow::Result<usize> {
++) -> anyhow::Result<(usize, CommitMap)> {
+     let mut total_rejected = 0;
+     for absorption in absorption_plan {
+         let diff_specs = convert_assignments_to_diff_specs(
+@@ -200,7 +201,7 @@ fn apply_commit_changes(
+         total_rejected += outcome.rejected_specs.len();
+     }
+
+-    Ok(total_rejected)
++    Ok((total_rejected, commit_map))
+ }
+
+ #[derive(Debug, Clone)]
+diff --git a/crates/but-action/src/lib.rs b/crates/but-action/src/lib.rs
+--- a/crates/but-action/src/lib.rs
++++ b/crates/but-action/src/lib.rs
+@@ -9,7 +9,7 @@ use std::{
+
+ use but_core::{TreeChange, sync::RepoExclusiveGuard};
+ use but_ctx::{Context, ProjectHandleOrLegacyProjectId, access::RepoExclusive};
+-use but_hunk_assignment::CommitAbsorption;
++use but_hunk_assignment::{CommitAbsorption, CommitMap};
+ use but_oxidize::ObjectIdExt;
+ use but_workspace::legacy::ui::StackEntry;
+ use gitbutler_branch::BranchCreateRequest;
+@@ -66,7 +67,7 @@ pub fn auto_commit_simple(
+     context_lines: u32,
+     llm: Option<&but_llm::LLMProvider>,
+     absorption_plan: Vec<CommitAbsorption>,
+     guard: &mut RepoExclusiveGuard,
+-) -> anyhow::Result<usize> {
++) -> anyhow::Result<(usize, CommitMap)> {
+     auto_commit::auto_commit_simple(
+         repo,
+         project_data_dir,
+diff --git a/crates/but/src/command/legacy/reword.rs b/crates/but/src/command/legacy/reword.rs
+--- a/crates/but/src/command/legacy/reword.rs
++++ b/crates/but/src/command/legacy/reword.rs
+@@ -82,6 +82,12 @@ fn edit_branch_name(
+             if let Some(out) = out.for_human() {
+                 writeln!(out, "Renamed branch '{branch_name}' to '{new_name}'")?;
+             }
++            if let Some(out) = out.for_json() {
++                out.write_value(serde_json::json!({
++                    "ok": true,
++                    "old_name": branch_name,
++                    "new_name": new_name,
++                }))?;
++            }
+             return Ok(());
+         }
+     }
+@@ -129,6 +135,12 @@ fn edit_commit_message_by_id(
+     if new_message.trim() == current_message.trim() {
+         if let Some(out) = out.for_human() {
+             writeln!(out, "No changes to commit message - nothing to be done")?;
+         }
++        if let Some(out) = out.for_json() {
++            out.write_value(serde_json::json!({
++                "ok": true,
++                "no_change": true,
++            }))?;
++        }
+         return Ok(());
+     }
+
+@@ -146,6 +158,13 @@ fn edit_commit_message_by_id(
+         )?;
+     }
+
++    if let Some(out) = out.for_json() {
++        out.write_value(serde_json::json!({
++            "ok": true,
++            "new_commit_id": new_commit_oid.to_string(),
++            "old_commit_id": commit_oid.to_string(),
++        }))?;
++    }
++
+     Ok(())
+ }
+
+diff --git a/crates/but/src/command/legacy/rub/amend.rs b/crates/but/src/command/legacy/rub/amend.rs
+--- a/crates/but/src/command/legacy/rub/amend.rs
++++ b/crates/but/src/command/legacy/rub/amend.rs
+@@ -37,9 +37,19 @@ pub(crate) fn uncommitted_to_commit(
+         writeln!(out, "Amended {description} → {new_commit}")?;
+     } else if let Some(out) = out.for_json() {
+-        out.write_value(serde_json::json!({
++        let mut json = serde_json::json!({
+             "ok": true,
+             "new_commit_id": outcome.new_commit.map(|c| c.to_string()),
+-        }))?;
++            "old_commit_id": oid.to_string(),
++        });
++        if let Some(rebase_output) = &outcome.rebase_output {
++            let mapping: serde_json::Map<String, serde_json::Value> = rebase_output
++                .commit_mapping
++                .iter()
++                .map(|(_, old, new)| (old.to_string(), serde_json::Value::String(new.to_string())))
++                .collect();
++            json["commit_mapping"] = serde_json::Value::Object(mapping);
++        }
++        out.write_value(json)?;
+     }
+     Ok(())
+ }
+@@ -78,9 +88,19 @@ pub(crate) fn assignments_to_commit(
+             writeln!(out, "Amended unassigned files → {new_commit}")?;
+         }
+     } else if let Some(out) = out.for_json() {
+-        out.write_value(serde_json::json!({
++        let mut json = serde_json::json!({
+             "ok": true,
+             "new_commit_id": outcome.new_commit.map(|c| c.to_string()),
+-        }))?;
++            "old_commit_id": oid.to_string(),
++        });
++        if let Some(rebase_output) = &outcome.rebase_output {
++            let mapping: serde_json::Map<String, serde_json::Value> = rebase_output
++                .commit_mapping
++                .iter()
++                .map(|(_, old, new)| (old.to_string(), serde_json::Value::String(new.to_string())))
++                .collect();
++            json["commit_mapping"] = serde_json::Value::Object(mapping);
++        }
++        out.write_value(json)?;
+     }
+     Ok(())
+ }
+diff --git a/crates/but/src/command/legacy/rub/squash.rs b/crates/but/src/command/legacy/rub/squash.rs
+--- a/crates/but/src/command/legacy/rub/squash.rs
++++ b/crates/but/src/command/legacy/rub/squash.rs
+@@ -297,8 +297,10 @@ fn squash_commits_internal(
+     } else if let Some(out) = out.for_json() {
+         out.write_value(serde_json::json!({
+             "ok": true,
+             "new_commit_id": final_commit_oid.to_gix().to_string(),
+             "squashed_count": source_oids.len(),
++            "source_commit_ids": source_oids.iter().map(|oid| oid.to_string()).collect::<Vec<_>>(),
++            "target_commit_id": target_oid.to_string(),
+         }))?;
+     }
+     Ok(())
+diff --git a/crates/but/src/command/legacy/absorb.rs b/crates/but/src/command/legacy/absorb.rs
+--- a/crates/but/src/command/legacy/absorb.rs
++++ b/crates/but/src/command/legacy/absorb.rs
+@@ -131,9 +131,9 @@ fn absorb_assignments(
+     plan_json: Option<JsonAbsorbOutput>,
+ ) -> anyhow::Result<()> {
+-    let total_rejected = if new {
++    let (total_rejected, commit_map) = if new {
+         but_action::auto_commit_simple(repo, data_dir, context_lines, None, absorption_plan, guard)?
+     } else {
+         but_api::legacy::absorb::absorb_impl(absorption_plan, guard, repo, data_dir)?
+     };
+
+     // Display completion message
+@@ -156,10 +156,18 @@ fn absorb_assignments(
+     } else if let Some(out) = out.for_json() {
+         // Combine plan and result into a single JSON write to avoid overwriting
+         // the plan in the JSON buffer (which would lose absorption plan data).
++        let commit_mapping: serde_json::Map<String, serde_json::Value> = commit_map
++            .mappings()
++            .iter()
++            .map(|(old, new)| (old.to_string(), serde_json::Value::String(new.to_string())))
++            .collect();
+         let mut combined = serde_json::json!({
+             "ok": total_rejected == 0,
+             "rejected": total_rejected,
++            "commit_mapping": serde_json::Value::Object(commit_mapping),
+         });
+         if let Some(plan) = plan_json {
+             combined["plan"] = serde_json::to_value(plan).unwrap_or(serde_json::Value::Null);
+         }
+         out.write_value(combined)?;
+     }

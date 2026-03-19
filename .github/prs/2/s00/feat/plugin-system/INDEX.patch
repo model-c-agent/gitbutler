@@ -1,0 +1,442 @@
+diff --git a/crates/but/src/alias.rs b/crates/but/src/alias.rs
+--- a/crates/but/src/alias.rs
++++ b/crates/but/src/alias.rs
+@@ -153,6 +153,72 @@ fn read_git_config_alias(repo: &gix::Repository, alias_name: &str) -> Option<St
+     config.string(&config_key).map(|v| v.to_string())
+ }
+
++/// Search PATH for executables matching `but-<name>`.
++///
++/// Returns the full path to the executable if found, or `None`.
++#[cfg(not(feature = "wasi"))]
++pub fn find_external_subcommand(name: &str) -> Option<std::path::PathBuf> {
++    let target = format!("but-{name}");
++    std::env::var_os("PATH").and_then(|paths| {
++        std::env::split_paths(&paths).find_map(|dir| {
++            let candidate = dir.join(&target);
++            if candidate.is_file() && is_executable(&candidate) {
++                Some(candidate)
++            } else {
++                None
++            }
++        })
++    })
++}
++
++/// List all external subcommands found on PATH.
++///
++/// Returns a sorted, deduplicated list of (name, path) tuples where `name`
++/// is the subcommand name (without the `but-` prefix).
++#[cfg(not(feature = "wasi"))]
++pub fn list_external_subcommands() -> Vec<(String, std::path::PathBuf)> {
++    let mut seen = std::collections::HashSet::new();
++    let mut result = Vec::new();
++
++    if let Some(paths) = std::env::var_os("PATH") {
++        for dir in std::env::split_paths(&paths) {
++            if let Ok(entries) = std::fs::read_dir(&dir) {
++                for entry in entries.flatten() {
++                    let file_name = entry.file_name();
++                    if let Some(name) = file_name.to_str() {
++                        if let Some(subcommand) = name.strip_prefix("but-") {
++                            let path = entry.path();
++                            if path.is_file()
++                                && is_executable(&path)
++                                && !is_known_subcommand(subcommand)
++                                && seen.insert(subcommand.to_string())
++                            {
++                                result.push((subcommand.to_string(), path));
++                            }
++                        }
++                    }
++                }
++            }
++        }
++    }
++
++    result.sort_by(|a, b| a.0.cmp(&b.0));
++    result
++}
++
++/// Checks whether a path is executable.
++#[cfg(not(feature = "wasi"))]
++fn is_executable(path: &std::path::Path) -> bool {
++    #[cfg(unix)]
++    {
++        use std::os::unix::fs::PermissionsExt;
++        path.metadata()
++            .map(|m| m.permissions().mode() & 0o111 != 0)
++            .unwrap_or(false)
++    }
++    #[cfg(not(unix))]
++    {
++        // On Windows, just check if the file exists -- executable bit doesn't apply
++        path.is_file()
++    }
++}
++
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+@@ -231,4 +297,18 @@ mod tests {
+         assert_eq!(result[1], OsString::from("status"));
+         assert_eq!(result[result.len() - 1], OsString::from("--verbose"));
+     }
++
++    #[test]
++    #[cfg(not(feature = "wasi"))]
++    fn find_external_subcommand_nonexistent() {
++        assert!(find_external_subcommand("nonexistent-plugin-xyz").is_none());
++    }
++
++    #[test]
++    #[cfg(not(feature = "wasi"))]
++    fn list_external_subcommands_returns_sorted() {
++        let plugins = list_external_subcommands();
++        let names: Vec<&str> = plugins.iter().map(|(n, _)| n.as_str()).collect();
++        let mut sorted = names.clone();
++        sorted.sort();
++        assert_eq!(names, sorted);
++    }
+ }
+diff --git a/crates/but/src/lib.rs b/crates/but/src/lib.rs
+--- a/crates/but/src/lib.rs
++++ b/crates/but/src/lib.rs
+@@ -81,6 +81,14 @@ pub async fn handle_args(args: impl Iterator<Item = OsString>) -> Result<()> {
+     // Expand aliases before parsing arguments
+     let args = alias::expand_aliases(args)?;
+
++    // Try external plugin before clap parsing (Step 4 in resolution order)
++    #[cfg(not(feature = "wasi"))]
++    {
++        if let Some(plugin_result) = try_exec_plugin(&args) {
++            return plugin_result;
++        }
++    }
++
+     // The `but push --help` output is different if gerrit mode is enabled, hence the special handling
+     let args_vec: Vec<String> = std::env::args().collect();
+     // TODO: handle this as part of clap, it can be told to not generate all help.
+@@ -216,6 +224,68 @@ pub async fn handle_args(args: impl Iterator<Item = OsString>) -> Result<()> {
+     }
+ }
+
++/// Attempts to find and exec an external plugin for the given args.
++///
++/// Returns `Some(Result)` if a plugin was found (and executed or failed),
++/// or `None` if no plugin matches (caller should proceed with clap parsing).
++#[cfg(not(feature = "wasi"))]
++fn try_exec_plugin(args: &[OsString]) -> Option<Result<()>> {
++    // Need at least "but <name>"
++    if args.len() < 2 {
++        return None;
++    }
++
++    let potential_name = args[1].to_str()?;
++
++    // Skip flags
++    if potential_name.starts_with('-') {
++        return None;
++    }
++
++    // Skip known subcommands (they'll be handled by clap)
++    if alias::is_known_subcommand(potential_name) {
++        return None;
++    }
++
++    // Try to find but-<name> on PATH
++    let plugin_path = alias::find_external_subcommand(potential_name)?;
++
++    // Found a plugin -- exec it
++    let plugin_args = &args[2..]; // everything after "but <name>"
++
++    // Set environment variables for the plugin
++    let current_dir = args
++        .windows(2)
++        .find_map(|w| {
++            if w[0] == "-C" || w[0] == "--current-dir" {
++                Some(w[1].clone())
++            } else {
++                None
++            }
++        })
++        .unwrap_or_else(|| OsString::from("."));
++
++    let format_val = args
++        .windows(2)
++        .find_map(|w| {
++            if w[0] == "-f" || w[0] == "--format" {
++                Some(w[1].clone())
++            } else {
++                None
++            }
++        })
++        .unwrap_or_else(|| OsString::from("human"));
++
++    let has_json = args.iter().any(|a| a == "--json" || a == "-j");
++
++    let status = std::process::Command::new(&plugin_path)
++        .args(plugin_args)
++        .env("BUT_WORKSPACE_DIR", &current_dir)
++        .env("BUT_OUTPUT_FORMAT", &format_val)
++        .env("BUT_JSON", if has_json { "1" } else { "0" })
++        .status();
++
++    Some(match status {
++        Ok(status) if status.success() => Ok(()),
++        Ok(status) => {
++            std::process::exit(status.code().unwrap_or(1));
++        }
++        Err(e) => Err(anyhow::anyhow!(
++            "Failed to execute plugin '{}': {}",
++            plugin_path.display(),
++            e
++        )),
++    })
++}
++
+ async fn match_subcommand(
+     cmd: Subcommands,
+     args: Args,
+@@ -284,6 +354,17 @@ async fn match_subcommand(
+                 }
+             }
+         }
++        #[cfg(not(feature = "wasi"))]
++        Subcommands::Plugin(args::plugin::Platform { cmd }) => {
++            match cmd {
++                Some(args::plugin::Subcommands::List) | None => {
++                    command::plugin::list(out).emit_metrics(metrics_ctx)
++                }
++                Some(args::plugin::Subcommands::Path) => {
++                    command::plugin::path(out).emit_metrics(metrics_ctx)
++                }
++            }
++        }
+         Subcommands::Config(args::config::Platform { cmd }) => {
+             #[cfg(feature = "native")]
+             {
+diff --git a/crates/but/src/args/mod.rs b/crates/but/src/args/mod.rs
+--- a/crates/but/src/args/mod.rs
++++ b/crates/but/src/args/mod.rs
+@@ -688,6 +688,28 @@ pub enum Subcommands {
+     ///
+     #[clap(verbatim_doc_comment)]
+     Alias(alias::Platform),
++
++    /// Manage external plugins (but-* executables on PATH).
++    ///
++    /// Lists available external subcommands that extend `but` functionality.
++    /// These are executables named `but-<name>` found on your PATH.
++    ///
++    /// Running `but plugin` without a subcommand lists available plugins
++    /// (same as `but plugin list`).
++    ///
++    /// ## Examples
++    ///
++    /// List available plugins:
++    ///
++    /// ```text
++    /// but plugin list
++    /// ```
++    ///
++    /// Show PATH directories searched for plugins:
++    ///
++    /// ```text
++    /// but plugin path
++    /// ```
++    ///
++    #[cfg(not(feature = "wasi"))]
++    #[clap(verbatim_doc_comment)]
++    Plugin(plugin::Platform),
+
+     /// View and manage GitButler configuration.
+     ///
+@@ -1084,6 +1106,8 @@ pub mod config;
+ #[cfg(feature = "native")]
+ pub mod link;
++#[cfg(not(feature = "wasi"))]
++pub mod plugin;
+ pub mod skill;
+ pub mod update;
+
+diff --git a/crates/but/src/args/plugin.rs b/crates/but/src/args/plugin.rs
+new file mode 100644
+--- /dev/null
++++ b/crates/but/src/args/plugin.rs
+@@ -0,0 +1,15 @@
++//! Command-line argument definitions for the `but plugin` command.
++
++#[derive(Debug, clap::Parser)]
++pub struct Platform {
++    #[clap(subcommand)]
++    pub cmd: Option<Subcommands>,
++}
++
++#[derive(Debug, clap::Subcommand)]
++pub enum Subcommands {
++    /// List all external plugins found on PATH
++    List,
++    /// Show PATH directories searched for plugins
++    Path,
++}
+diff --git a/crates/but/src/command/mod.rs b/crates/but/src/command/mod.rs
+--- a/crates/but/src/command/mod.rs
++++ b/crates/but/src/command/mod.rs
+@@ -14,6 +14,8 @@ pub mod onboarding;
+ pub mod push;
+ #[cfg(feature = "native")]
+ pub mod skill;
++#[cfg(not(feature = "wasi"))]
++pub mod plugin;
+ pub mod update;
+diff --git a/crates/but/src/command/plugin.rs b/crates/but/src/command/plugin.rs
+new file mode 100644
+--- /dev/null
++++ b/crates/but/src/command/plugin.rs
+@@ -0,0 +1,79 @@
++//! Command implementation for managing `but` external plugins.
++//!
++//! Provides subcommands to list available external plugins (but-* executables on PATH)
++//! and show the directories searched for plugins.
++
++use anyhow::Result;
++use colored::Colorize;
++
++use crate::utils::OutputChannel;
++
++/// List all external plugins found on PATH.
++pub fn list(out: &mut OutputChannel) -> Result<()> {
++    let plugins = crate::alias::list_external_subcommands();
++
++    if plugins.is_empty() {
++        if let Some(out) = out.for_human() {
++            writeln!(out, "No external plugins found on PATH.")?;
++            writeln!(out)?;
++            writeln!(
++                out,
++                "Plugins are executables named {} found on your PATH.",
++                "but-<name>".cyan()
++            )?;
++        } else if let Some(out) = out.for_json() {
++            out.write_value(serde_json::json!({ "plugins": [] }))?;
++        }
++        return Ok(());
++    }
++
++    if let Some(out) = out.for_human() {
++        writeln!(out, "{}:", "Available plugins".bold())?;
++        writeln!(out)?;
++
++        let max_name_len = plugins.iter().map(|(n, _)| n.len()).max().unwrap_or(0);
++
++        for (name, path) in &plugins {
++            writeln!(
++                out,
++                "  {:<width$}  {}",
++                name.green(),
++                path.display().to_string().dimmed(),
++                width = max_name_len
++            )?;
++        }
++    } else if let Some(out) = out.for_json() {
++        let entries: Vec<serde_json::Value> = plugins
++            .iter()
++            .map(|(name, path)| {
++                serde_json::json!({
++                    "name": name,
++                    "path": path.display().to_string()
++                })
++            })
++            .collect();
++        out.write_value(serde_json::json!({ "plugins": entries }))?;
++    }
++
++    Ok(())
++}
++
++/// Show PATH directories searched for plugins.
++pub fn path(out: &mut OutputChannel) -> Result<()> {
++    let paths: Vec<std::path::PathBuf> = std::env::var_os("PATH")
++        .map(|p| std::env::split_paths(&p).collect())
++        .unwrap_or_default();
++
++    if let Some(out) = out.for_human() {
++        writeln!(out, "{}:", "Plugin search directories".bold())?;
++        writeln!(out)?;
++        for path in &paths {
++            let has_plugins = std::fs::read_dir(path)
++                .map(|entries| {
++                    entries
++                        .flatten()
++                        .any(|e| e.file_name().to_str().is_some_and(|n| n.starts_with("but-")))
++                })
++                .unwrap_or(false);
++
++            if has_plugins {
++                writeln!(out, "  {} {}", "*".green(), path.display())?;
++            } else {
++                writeln!(out, "    {}", path.display().to_string().dimmed())?;
++            }
++        }
++        writeln!(out)?;
++        writeln!(out, "  {} = contains but-* plugins", "*".green())?;
++    } else if let Some(out) = out.for_json() {
++        let entries: Vec<serde_json::Value> = paths
++            .iter()
++            .map(|p| serde_json::json!(p.display().to_string()))
++            .collect();
++        out.write_value(serde_json::json!({ "paths": entries }))?;
++    }
++
++    Ok(())
++}
+diff --git a/crates/but/src/command/help.rs b/crates/but/src/command/help.rs
+--- a/crates/but/src/command/help.rs
++++ b/crates/but/src/command/help.rs
+@@ -37,6 +37,10 @@ pub fn print_grouped(out: &mut dyn std::fmt::Write) -> std::fmt::Result {
+             "Operation History".yellow(),
+             vec!["oplog", "undo", "restore"],
+         ),
++        (
++            "Plugins".yellow(),
++            vec!["plugin"],
++        ),
+     ];
+
+     writeln!(out, "{}", "The GitButler CLI change control system".red())?;
+diff --git a/crates/but/src/args/metrics.rs b/crates/but/src/args/metrics.rs
+--- a/crates/but/src/args/metrics.rs
++++ b/crates/but/src/args/metrics.rs
+@@ -59,6 +59,8 @@ pub enum CommandName {
+     SkillCheck,
+     Pick,
++    PluginList,
++    PluginPath,
+     #[default]
+     Unknown,
+ }
+diff --git a/crates/but/src/utils/metrics.rs b/crates/but/src/utils/metrics.rs
+--- a/crates/but/src/utils/metrics.rs
++++ b/crates/but/src/utils/metrics.rs
+@@ -62,6 +62,8 @@ impl Subcommands {
+
+         #[cfg(feature = "native")]
+         use crate::args::link;
++        #[cfg(not(feature = "wasi"))]
++        use crate::args::plugin;
+         use crate::args::{alias as alias_args, branch, claude, cursor, forge, skill, worktree};
+         match self {
+             #[cfg(feature = "legacy")]
+@@ -199,6 +201,11 @@ impl Subcommands {
+                 skill::Subcommands::Install { .. } => SkillInstall,
+                 skill::Subcommands::Check { .. } => SkillCheck,
+             },
++            #[cfg(not(feature = "wasi"))]
++            Subcommands::Plugin(plugin::Platform { cmd }) => match cmd {
++                None | Some(plugin::Subcommands::List) => PluginList,
++                Some(plugin::Subcommands::Path) => PluginPath,
++            },
+             #[cfg(feature = "tui")]
+             Subcommands::Edit { .. } => Edit,
+             #[cfg(feature = "native")]

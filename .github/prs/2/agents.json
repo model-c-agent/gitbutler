@@ -1,0 +1,127 @@
+{
+  "pr": 2,
+  "main_branch": "feat/but-cli-improvements",
+  "target": "master",
+  "agents": [
+    {
+      "id": "s00",
+      "folder": "s00/feat/plugin-system",
+      "branch": "pr2/s00/feat/plugin-system",
+      "description": "Cargo-style plugin system",
+      "tier": 0,
+      "dependencies": [],
+      "size": "M",
+      "fixes": ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10"]
+    },
+    {
+      "id": "s01",
+      "folder": "s01/fix/commit-null-id-error",
+      "branch": "pr2/s01/fix/commit-null-id-error",
+      "description": "Fix silent null commit IDs",
+      "tier": 0,
+      "dependencies": [],
+      "size": "S",
+      "fixes": ["F1", "F3"]
+    },
+    {
+      "id": "s02",
+      "folder": "s02/feat/mutation-return-new-ids",
+      "branch": "pr2/s02/feat/mutation-return-new-ids",
+      "description": "Return new commit IDs from mutations",
+      "tier": 0,
+      "dependencies": [],
+      "size": "M",
+      "fixes": ["F6", "T8"]
+    },
+    {
+      "id": "s03",
+      "folder": "s03/feat/diff-name-only",
+      "branch": "pr2/s03/feat/diff-name-only",
+      "description": "Add but diff --name-only",
+      "tier": 0,
+      "dependencies": [],
+      "size": "S",
+      "fixes": ["T7"]
+    },
+    {
+      "id": "s11",
+      "folder": "s11/feat/sync-pause-resume",
+      "branch": "pr2/s11/feat/sync-pause-resume",
+      "description": "Add but sync pause/resume",
+      "tier": 0,
+      "dependencies": [],
+      "size": "M",
+      "fixes": ["F4"]
+    },
+    {
+      "id": "s04",
+      "folder": "s01.s04/feat/stage-override-lock",
+      "branch": "pr2/s01.s04/feat/stage-override-lock",
+      "description": "Add --override-lock to but stage",
+      "tier": 1,
+      "dependencies": ["s01"],
+      "size": "M",
+      "fixes": ["F2"]
+    },
+    {
+      "id": "s05",
+      "folder": "s02.s05/feat/batch-stage",
+      "branch": "pr2/s02.s05/feat/batch-stage",
+      "description": "Batch staging with comma-separated IDs",
+      "tier": 1,
+      "dependencies": ["s02"],
+      "size": "M",
+      "fixes": ["T3"]
+    },
+    {
+      "id": "s06",
+      "folder": "s02.s06/feat/batch-apply-unapply",
+      "branch": "pr2/s02.s06/feat/batch-apply-unapply",
+      "description": "Multi-branch apply/unapply",
+      "tier": 1,
+      "dependencies": ["s02"],
+      "size": "M",
+      "fixes": ["T1", "T2"]
+    },
+    {
+      "id": "s07",
+      "folder": "s03.s07/feat/branch-rename",
+      "branch": "pr2/s03.s07/feat/branch-rename",
+      "description": "Add but branch rename",
+      "tier": 2,
+      "dependencies": ["s03"],
+      "size": "S",
+      "fixes": ["F5"]
+    },
+    {
+      "id": "s08",
+      "folder": "s04.s05.s08/feat/human-status-improvements",
+      "branch": "pr2/s04.s05.s08/feat/human-status-improvements",
+      "description": "Human-readable status improvements",
+      "tier": 2,
+      "dependencies": ["s04", "s05"],
+      "size": "L",
+      "fixes": ["T4", "T5", "T6", "T9"]
+    },
+    {
+      "id": "s09",
+      "folder": "s07.s09/feat/branch-list-pattern-format",
+      "branch": "pr2/s07.s09/feat/branch-list-pattern-format",
+      "description": "Branch list with pattern and format",
+      "tier": 3,
+      "dependencies": ["s07"],
+      "size": "M",
+      "fixes": ["T5"]
+    },
+    {
+      "id": "s10",
+      "folder": "s08.s10/feat/branch-delete-pattern",
+      "branch": "pr2/s08.s10/feat/branch-delete-pattern",
+      "description": "Branch delete by pattern",
+      "tier": 3,
+      "dependencies": ["s08"],
+      "size": "S",
+      "fixes": ["T10"]
+    }
+  ]
+}
