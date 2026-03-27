@@ -5,8 +5,10 @@ use but_ctx::Context;
 use but_hunk_assignment::HunkAssignment;
 use gitbutler_stack::StackId;
 
+use std::collections::HashSet;
+
 use super::{
-    JsonChange, JsonDiff, JsonDiffOutput, JsonHunk,
+    JsonChange, JsonDiff, JsonDiffOutput, JsonHunk, JsonNameOnly,
     display::{DiffDisplay, TreeChangeWithPatch},
 };
 use crate::{IdMap, id::UncommittedCliId, utils::OutputChannel};
@@ -22,6 +24,7 @@ pub(crate) fn worktree(
     id_map: IdMap,
     out: &mut OutputChannel,
     filter: Option<Filter>,
+    name_only: bool,
 ) -> anyhow::Result<()> {
     let short_id_assignment_pairs: Vec<(&str, &HunkAssignment)> = id_map
         .uncommitted_hunks
@@ -43,23 +46,25 @@ pub(crate) fn worktree(
         })
         .map(|(short_id, uncommitted_hunk)| (short_id.as_str(), &uncommitted_hunk.hunk_assignment))
         .collect();
-    print_short_id_assignment_pairs(short_id_assignment_pairs, out)
+    print_short_id_assignment_pairs(short_id_assignment_pairs, out, name_only)
 }
 
 pub(crate) fn hunk_assignments<'a>(
     hunk_assignments: impl IntoIterator<Item = &'a (String, HunkAssignment)>,
     out: &mut OutputChannel,
+    name_only: bool,
 ) -> anyhow::Result<()> {
     let short_id_assignment_pairs: Vec<(&str, &HunkAssignment)> = hunk_assignments
         .into_iter()
         .map(|(short_id, hunk_assignment)| (short_id.as_str(), hunk_assignment))
         .collect();
-    print_short_id_assignment_pairs(short_id_assignment_pairs, out)
+    print_short_id_assignment_pairs(short_id_assignment_pairs, out, name_only)
 }
 
 fn print_short_id_assignment_pairs<'a>(
     mut short_id_assignment_pairs: Vec<(&'a str, &'a HunkAssignment)>,
     out: &mut OutputChannel,
+    name_only: bool,
 ) -> anyhow::Result<()> {
     short_id_assignment_pairs.sort_by(|(_, a_assignment), (_, b_assignment)| {
         a_assignment
@@ -72,6 +77,31 @@ fn print_short_id_assignment_pairs<'a>(
                     .then_with(|| a_assignment.hunk_header.cmp(&b_assignment.hunk_header))
             })
     });
+
+    if name_only {
+        let mut seen = HashSet::new();
+        let paths: Vec<&str> = short_id_assignment_pairs
+            .iter()
+            .filter_map(|(_, a)| {
+                if seen.insert(a.path.as_str()) {
+                    Some(a.path.as_str())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        if let Some(json_out) = out.for_json() {
+            json_out.write_value(JsonNameOnly {
+                files: paths.iter().map(|p| p.to_string()).collect(),
+            })?;
+        } else if let Some(out) = out.for_human_or_shell() {
+            for path in &paths {
+                writeln!(out, "{path}")?;
+            }
+        }
+        return Ok(());
+    }
 
     if short_id_assignment_pairs.is_empty() {
         if let Some(json_out) = out.for_json() {
@@ -101,8 +131,27 @@ pub(crate) fn commit(
     out: &mut OutputChannel,
     id: gix::ObjectId,
     path: Option<BString>,
+    name_only: bool,
 ) -> anyhow::Result<()> {
     let result = but_api::diff::commit_details(ctx, id, ComputeLineStats::No)?;
+
+    if name_only {
+        let paths: Vec<String> = result
+            .diff_with_first_parent
+            .iter()
+            .filter(|change| path.as_ref().is_none_or(|p| p == &change.path))
+            .map(|change| change.path.to_string())
+            .collect();
+
+        if let Some(json_out) = out.for_json() {
+            json_out.write_value(JsonNameOnly { files: paths })?;
+        } else if let Some(out) = out.for_human_or_shell() {
+            for p in &paths {
+                writeln!(out, "{p}")?;
+            }
+        }
+        return Ok(());
+    }
 
     if let Some(json_out) = out.for_json() {
         let changes: Vec<JsonChange> = result
@@ -137,8 +186,26 @@ pub(crate) fn branch(
     ctx: &Context,
     out: &mut OutputChannel,
     short_name: String,
+    name_only: bool,
 ) -> anyhow::Result<()> {
     let result = but_api::branch::branch_diff(ctx, short_name)?;
+
+    if name_only {
+        let paths: Vec<String> = result
+            .changes
+            .iter()
+            .map(|change| change.path_bytes.to_string())
+            .collect();
+
+        if let Some(json_out) = out.for_json() {
+            json_out.write_value(JsonNameOnly { files: paths })?;
+        } else if let Some(out) = out.for_human_or_shell() {
+            for p in &paths {
+                writeln!(out, "{p}")?;
+            }
+        }
+        return Ok(());
+    }
 
     if let Some(json_out) = out.for_json() {
         let changes: Vec<JsonChange> = result

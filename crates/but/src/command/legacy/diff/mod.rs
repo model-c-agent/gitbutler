@@ -57,6 +57,7 @@ pub fn handle(
     ctx: &mut Context,
     out: &mut OutputChannel,
     target_str: Option<&str>,
+    name_only: bool,
 ) -> anyhow::Result<()> {
     let wt_changes = but_api::diff::changes_in_worktree(ctx)?;
     let id_map = IdMap::new_from_context(ctx, Some(wt_changes.assignments.clone()))?;
@@ -69,26 +70,31 @@ pub fn handle(
             .ok_or_else(|| anyhow::anyhow!("No ID found for entity"))?;
 
         match id {
-            CliId::Uncommitted(id) => show::worktree(id_map, out, Some(Filter::Uncommitted(id))),
+            CliId::Uncommitted(id) => show::worktree(id_map, out, Some(Filter::Uncommitted(id)), name_only),
             CliId::PathPrefix {
                 hunk_assignments, ..
-            } => show::hunk_assignments(&hunk_assignments, out),
-            CliId::Unassigned { .. } => show::worktree(id_map, out, Some(Filter::Unassigned)),
+            } => show::hunk_assignments(&hunk_assignments, out, name_only),
+            CliId::Unassigned { .. } => show::worktree(id_map, out, Some(Filter::Unassigned), name_only),
             CliId::CommittedFile {
                 commit_id, path, ..
-            } => show::commit(ctx, out, commit_id, Some(path)),
-            CliId::Branch { name, .. } => show::branch(ctx, out, name),
-            CliId::Commit { commit_id: id, .. } => show::commit(ctx, out, id, None),
+            } => show::commit(ctx, out, commit_id, Some(path), name_only),
+            CliId::Branch { name, .. } => show::branch(ctx, out, name, name_only),
+            CliId::Commit { commit_id: id, .. } => show::commit(ctx, out, id, None, name_only),
             CliId::Stack { id: _, stack_id } => {
-                show::worktree(id_map, out, Some(Filter::Stack(stack_id)))
+                show::worktree(id_map, out, Some(Filter::Stack(stack_id)), name_only)
             }
         }
     } else {
-        show::worktree(id_map, out, None)
+        show::worktree(id_map, out, None, name_only)
     }
 }
 
 // JSON output structures
+
+#[derive(Debug, Serialize)]
+struct JsonNameOnly {
+    files: Vec<String>,
+}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
