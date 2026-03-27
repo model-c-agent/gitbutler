@@ -31,6 +31,9 @@ gitbutler-project = { workspace = true, optional = true }
 tracing.workspace = true
 anyhow.workspace = true
 gix.workspace = true
+
+# Native-only deps
+[target.'cfg(not(target_os = "wasi"))'.dependencies]
 git2.workspace = true
 
 [dev-dependencies]

@@ -110,6 +110,7 @@ pub struct Context {
     /// be performed by using [`Self::clone_repo_for_merging()`].
     pub repo: OnDemand<gix::Repository>,
     /// The most recently opened `git2` repository of the project.
+    #[cfg(not(target_os = "wasi"))]
     pub git2_repo: OnDemand<git2::Repository>,
     /// An open handle to the database. It's initialized lazily upon first access.
     /// It is also what makes this type non-Clone, which is fair.
@@ -170,6 +171,7 @@ impl From<ThreadSafeContext> for Context {
             settings,
             repo_open_mode,
             repo: ondemand,
+            #[cfg(not(target_os = "wasi"))]
             git2_repo: new_ondemand_git2_repo(gitdir.clone()),
             db: new_ondemand_db(project_data_dir.clone()),
             cache: new_ondemand_cache(project_data_dir.clone(), cache_mode),
@@ -282,6 +284,7 @@ impl Context {
                 cache_mode: CacheMode::Disk,
                 repo_open_mode,
                 repo: new_ondemand_repo(gitdir.clone(), repo_open_mode),
+                #[cfg(not(target_os = "wasi"))]
                 git2_repo: new_ondemand_git2_repo(gitdir.clone()),
                 db: new_ondemand_db(project_data_dir.clone()),
                 cache: new_ondemand_cache(project_data_dir, CacheMode::Disk),
@@ -308,6 +311,7 @@ impl Context {
                 repo_open_mode,
                 legacy_project,
                 repo: new_ondemand_repo(gitdir.clone(), repo_open_mode),
+                #[cfg(not(target_os = "wasi"))]
                 git2_repo: new_ondemand_git2_repo(gitdir.clone()),
                 db: new_ondemand_db(project_data_dir.clone()),
                 cache: new_ondemand_cache(project_data_dir, cache_mode),
@@ -392,6 +396,7 @@ impl Context {
                 repo_open_mode,
                 legacy_project,
                 repo: new_ondemand_repo(gitdir.clone(), repo_open_mode),
+                #[cfg(not(target_os = "wasi"))]
                 git2_repo: new_ondemand_git2_repo(gitdir.clone()),
                 db: new_ondemand_db(project_data_dir.clone()),
                 cache: new_ondemand_cache(project_data_dir, cache_mode),
@@ -413,6 +418,7 @@ impl Context {
                 cache_mode,
                 repo_open_mode,
                 repo: new_ondemand_repo(gitdir.clone(), repo_open_mode),
+                #[cfg(not(target_os = "wasi"))]
                 git2_repo: new_ondemand_git2_repo(gitdir.clone()),
                 db: new_ondemand_db(project_data_dir.clone()),
                 cache: new_ondemand_cache(project_data_dir, cache_mode),
@@ -450,6 +456,7 @@ impl Context {
             cache_mode,
             repo_open_mode,
             repo: new_ondemand_repo(gitdir.clone(), repo_open_mode),
+            #[cfg(not(target_os = "wasi"))]
             git2_repo: new_ondemand_git2_repo(gitdir.clone()),
             db: new_ondemand_db(project_data_dir.clone()),
             cache: new_ondemand_cache(project_data_dir, cache_mode),
@@ -461,6 +468,7 @@ impl Context {
     }
 
     /// Use `git2_repo` instead of the default repository that would be opened on first query.
+    #[cfg(not(target_os = "wasi"))]
     pub fn with_git2_repo(mut self, git2_repo: git2::Repository) -> Self {
         self.git2_repo.assign(git2_repo);
         self
@@ -953,6 +961,7 @@ impl Context {
             gitdir,
             project_data_dir,
             mut repo,
+            #[cfg(not(target_os = "wasi"))]
             git2_repo: _,
             db: _,
             cache: _,
@@ -1072,6 +1081,7 @@ fn open_repo(gitdir: &Path, repo_open_mode: RepoOpenMode) -> anyhow::Result<gix:
     }
 }
 
+#[cfg(not(target_os = "wasi"))]
 #[instrument(level = "trace")]
 fn new_ondemand_git2_repo(gitdir: PathBuf) -> OnDemand<git2::Repository> {
     OnDemand::new({
