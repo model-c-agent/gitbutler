@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Push all (or filtered) GitButler branches to their remote.
+# Usage: but-push-all [--pattern <regex>] [--dry-run]
+
+pattern=""
+dry_run=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --pattern|-p) pattern="$2"; shift 2 ;;
+    --dry-run)    dry_run=true; shift ;;
+    --help|-h)
+      echo "Usage: but push-all [--pattern <regex>] [--dry-run]"
+      echo
+      echo "  Push all GitButler branches to their remote."
+      echo "  --pattern <regex>  Only push branches matching the regex."
+      echo "  --dry-run          Show what would be pushed without pushing."
+      exit 0
+      ;;
+    *) echo "Unknown flag: $1"; exit 1 ;;
+  esac
+done
+
+status_json=$(but status --json 2>/dev/null)
+
+# Extract branch cliId and name pairs
+branches=$(echo "$status_json" | jq -r '
+  .stacks[]
+  | .branches[]
+  | [.cliId, .name] | @tsv
+')
+
+if [[ -z "$branches" ]]; then
+  echo "No branches found."
+  exit 0
+fi
+
+# Apply pattern filter if specified
+if [[ -n "$pattern" ]]; then
+  branches=$(echo "$branches" | grep -P "\t.*$pattern" || true)
+  if [[ -z "$branches" ]]; then
+    echo "No branches matching '$pattern'"
+    exit 0
+  fi
+fi
+
+pushed=0
+failed=0
+skipped=0
+
+while IFS=$'\t' read -r cli_id name; do
+  if $dry_run; then
+    echo "  would push: $name ($cli_id)"
+    skipped=$((skipped + 1))
+    continue
+  fi
+
+  echo -n "  pushing: $name ... "
+  if but push "$cli_id" 2>&1; then
+    echo "ok"
+    pushed=$((pushed + 1))
+  else
+    echo "FAILED"
+    failed=$((failed + 1))
+  fi
+done <<< "$branches"
+
+if $dry_run; then
+  echo "Dry run: $skipped branch(es) would be pushed."
+else
+  echo "Pushed $pushed branch(es)."
+  if [[ $failed -gt 0 ]]; then echo "Failed: $failed"; fi
+fi
