@@ -152,11 +152,13 @@ fn show_edit_mode_status(ctx: &mut Context, out: &mut OutputChannel) -> anyhow::
     crate::command::legacy::resolve::show_resolve_status(ctx, out)
 }
 
+#[expect(clippy::too_many_arguments)]
 pub(crate) async fn worktree(
     ctx: &mut Context,
     out: &mut OutputChannel,
     flags: StatusFlags,
     render_mode: StatusRenderMode,
+    summary: bool,
 ) -> anyhow::Result<()> {
     // Check if we're in edit mode first, before doing any expensive operations
     let mode = but_api::legacy::modes::operating_mode(ctx)?.operating_mode;
@@ -176,6 +178,13 @@ pub(crate) async fn worktree(
             out.write_value(workspace_status)?;
             return Ok(());
         }
+    }
+
+    if summary {
+        if let Some(human_out) = out.for_human() {
+            return print_summary(&status_ctx.stack_details, human_out);
+        }
+        return Ok(());
     }
 
     match render_mode {
@@ -652,6 +661,56 @@ fn print_worktree_status(
         )?;
     }
 
+    Ok(())
+}
+
+fn print_summary(
+    stack_details: &[StackEntry],
+    out: &mut dyn std::fmt::Write,
+) -> anyhow::Result<()> {
+    for (_stack_id, (stack_with_id, assignments)) in stack_details {
+        if let Some(stack_with_id) = stack_with_id {
+            let staged_count = assignments.len();
+            for segment in &stack_with_id.segments {
+                let branch_name = segment
+                    .branch_name()
+                    .map(|n| n.to_string())
+                    .unwrap_or_else(|| "(unnamed)".to_string());
+                let commit_count = segment.workspace_commits.len();
+                let push_status = match &segment.inner.push_status {
+                    PushStatus::NothingToPush => "up-to-date".dimmed().to_string(),
+                    PushStatus::UnpushedCommits => "to push".yellow().to_string(),
+                    PushStatus::CompletelyUnpushed => "unpushed".red().to_string(),
+                    PushStatus::Integrated => "integrated".green().to_string(),
+                    PushStatus::UnpushedCommitsRequiringForce => "force push needed".red().to_string(),
+                };
+                let staged = if staged_count > 0 {
+                    format!(" +{staged_count} staged")
+                } else {
+                    String::new()
+                };
+                writeln!(
+                    out,
+                    "  {branch}  {commits} commit{s}{staged}  [{status}]",
+                    branch = branch_name.green().bold(),
+                    commits = commit_count,
+                    s = if commit_count == 1 { "" } else { "s" },
+                    status = push_status,
+                )?;
+            }
+        } else {
+            let unassigned_count = assignments.len();
+            if unassigned_count > 0 {
+                writeln!(
+                    out,
+                    "  {label}  {count} file{s}",
+                    label = "unassigned".cyan().bold(),
+                    count = unassigned_count,
+                    s = if unassigned_count == 1 { "" } else { "s" },
+                )?;
+            }
+        }
+    }
     Ok(())
 }
 

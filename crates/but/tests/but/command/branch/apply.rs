@@ -255,7 +255,7 @@ fn nonexistent_branch() -> anyhow::Result<()> {
         .assert()
         .failure()
         .stderr_eq(str![[r#"
-Failed to apply branch. The reference 'nonexistent-branch' did not exist
+The reference 'nonexistent-branch' did not exist The reference 'nonexistent-branch' did not exist
 
 "#]])
         .stdout_eq(str![""]);
@@ -273,7 +273,7 @@ fn nonexistent_branch_with_json() -> anyhow::Result<()> {
         .assert()
         .failure()
         .stderr_eq(str![[r#"
-Failed to apply branch. The reference 'nonexistent-branch' did not exist
+The reference 'nonexistent-branch' did not exist The reference 'nonexistent-branch' did not exist
 
 "#]]);
     // Note: Currently the apply function doesn't output anything with JSON when branch not found

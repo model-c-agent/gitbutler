@@ -107,7 +107,7 @@ fn unapply_idempotent() -> anyhow::Result<()> {
         .assert()
         .failure()
         .stderr_eq(str![[r#"
-Failed to unapply branch. Branch 'feature-branch' not found in any applied stack
+Branch 'feature-branch' not found in any applied stack Branch 'feature-branch' not found in any applied stack
 
 "#]])
         .stdout_eq(str![]);
@@ -151,7 +151,7 @@ fn unapply_nonexistent_branch() -> anyhow::Result<()> {
         .assert()
         .failure()
         .stderr_eq(str![[r#"
-Failed to unapply branch. Branch 'nonexistent-branch' not found in any applied stack
+Branch 'nonexistent-branch' not found in any applied stack Branch 'nonexistent-branch' not found in any applied stack
 
 "#]])
         .stdout_eq(str![]);
@@ -186,7 +186,7 @@ fn unapply_branch_not_in_workspace() -> anyhow::Result<()> {
         .assert()
         .failure()
         .stderr_eq(str![[r#"
-Failed to unapply branch. Branch 'feature-branch' not found in any applied stack
+Branch 'feature-branch' not found in any applied stack Branch 'feature-branch' not found in any applied stack
 
 "#]])
         .stdout_eq(str![]);

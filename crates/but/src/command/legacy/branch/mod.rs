@@ -16,7 +16,8 @@ mod show;
 pub fn delete(
     ctx: &mut but_ctx::Context,
     out: &mut OutputChannel,
-    branch_name: String,
+    branch_name: Option<String>,
+    pattern: Option<String>,
     force: bool,
 ) -> Result<(), anyhow::Error> {
     let stacks = but_api::legacy::workspace::stacks(
@@ -24,20 +25,128 @@ pub fn delete(
         Some(but_workspace::legacy::StacksFilter::InWorkspace),
     )?;
 
-    // Find which stack this branch belongs to
+    if let Some(pattern) = pattern {
+        // Pattern-based bulk deletion
+        let regex = regex::Regex::new(&pattern)
+            .map_err(|e| anyhow::anyhow!("Invalid regex pattern: {e}"))?;
+
+        let mut matches: Vec<(StackId, String)> = Vec::new();
+        for stack_entry in &stacks {
+            if let Some(sid) = stack_entry.id {
+                for head in &stack_entry.heads {
+                    if regex.is_match(&head.name.to_string()) {
+                        matches.push((sid, head.name.to_string()));
+                    }
+                }
+            }
+        }
+
+        if matches.is_empty() {
+            if let Some(out) = out.for_human() {
+                writeln!(out, "No branches matching pattern '{pattern}'")?;
+            }
+            return Ok(());
+        }
+
+        if let Some(out) = out.for_human() {
+            writeln!(out, "Branches matching '{pattern}':")?;
+            for (_, name) in &matches {
+                writeln!(out, "  {name}")?;
+            }
+        }
+
+        if !force
+            && let Some(mut inout) = out.prepare_for_terminal_input()
+            && inout.confirm(
+                format!("Delete {} branch(es)?", matches.len()),
+                ConfirmDefault::No,
+            )? == Confirm::No
+        {
+            bail!("Aborted.");
+        }
+
+        let mut deleted = 0;
+        for (sid, name) in &matches {
+            if let Err(e) = but_api::legacy::stack::remove_branch(ctx, *sid, name.clone()) {
+                if let Some(out) = out.for_human() {
+                    writeln!(out, "Failed to delete {name}: {e:#}")?;
+                }
+            } else {
+                deleted += 1;
+            }
+        }
+
+        if let Some(out) = out.for_human() {
+            writeln!(out, "Deleted {deleted}/{} branch(es).", matches.len())?;
+        }
+        Ok(())
+    } else if let Some(branch_name) = branch_name {
+        // Single branch deletion
+        for stack_entry in &stacks {
+            if stack_entry.heads.iter().all(|b| b.name != *branch_name) {
+                continue;
+            }
+
+            if let Some(sid) = stack_entry.id {
+                return confirm_branch_deletion(ctx, sid, &branch_name, force, out);
+            }
+        }
+
+        if let Some(out) = out.for_human() {
+            writeln!(out, "Branch '{branch_name}' not found in any stack")?;
+        }
+        Ok(())
+    } else {
+        bail!("Either a branch name or --pattern is required");
+    }
+}
+
+pub fn rename(
+    ctx: &mut but_ctx::Context,
+    out: &mut OutputChannel,
+    old_name: String,
+    new_name: String,
+) -> Result<(), anyhow::Error> {
+    let stacks = but_api::legacy::workspace::stacks(
+        ctx,
+        Some(but_workspace::legacy::StacksFilter::InWorkspace),
+    )?;
+
     for stack_entry in &stacks {
-        if stack_entry.heads.iter().all(|b| b.name != *branch_name) {
-            // Not found in this stack,
+        if stack_entry.heads.iter().all(|b| b.name != *old_name) {
             continue;
         }
 
         if let Some(sid) = stack_entry.id {
-            return confirm_branch_deletion(ctx, sid, &branch_name, force, out);
+            but_api::legacy::stack::update_branch_name(
+                ctx,
+                sid,
+                old_name.clone(),
+                new_name.clone(),
+            )?;
+
+            if let Some(out) = out.for_human() {
+                writeln!(
+                    out,
+                    "{} {} → {}",
+                    "✓ Renamed".green(),
+                    old_name.dimmed(),
+                    new_name.yellow()
+                )?;
+            } else if let Some(out) = out.for_shell() {
+                writeln!(out, "{new_name}")?;
+            } else if let Some(out) = out.for_json() {
+                out.write_value(json::BranchRenameOutput {
+                    old_name: old_name.clone(),
+                    new_name: new_name.clone(),
+                })?;
+            }
+            return Ok(());
         }
     }
 
     if let Some(out) = out.for_human() {
-        writeln!(out, "Branch '{branch_name}' not found in any stack")?;
+        writeln!(out, "Branch '{old_name}' not found in any stack")?;
     }
     Ok(())
 }
@@ -166,6 +275,7 @@ pub fn list_branches(
     ctx: &mut but_ctx::Context,
     out: &mut OutputChannel,
     filter: Option<String>,
+    pattern: Option<String>,
     local: bool,
     remote: bool,
     all: bool,
@@ -179,7 +289,7 @@ pub fn list_branches(
     let check = !no_check;
     // Invert the flag
     list::list(
-        ctx, local, remote, all, ahead, review, filter, out, check, empty,
+        ctx, local, remote, all, ahead, review, filter, pattern, out, check, empty,
     )?;
     Ok(())
 }
@@ -189,7 +299,7 @@ pub fn handle_no_subcommand(
     out: &mut OutputChannel,
 ) -> Result<(), anyhow::Error> {
     list_branches(
-        ctx, out, None, false, false, false, false, false, false, false,
+        ctx, out, None, None, false, false, false, false, false, false, false,
     )
 }
 

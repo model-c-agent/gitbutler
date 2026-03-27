@@ -29,6 +29,7 @@ pub enum CommandName {
     BranchDelete,
     BranchList,
     BranchShow,
+    BranchRename,
     BranchUnapply,
     BranchApply,
     BranchMove,
@@ -61,6 +62,8 @@ pub enum CommandName {
     SkillInstall,
     SkillCheck,
     Pick,
+    PluginList,
+    PluginPath,
     #[default]
     Unknown,
 }

@@ -35,8 +35,11 @@ pub enum Subcommands {
     #[clap(short_flag = 'd')]
     #[clap(verbatim_doc_comment)]
     Delete {
-        /// Name of the branch to delete
-        branch_name: String,
+        /// Name of the branch to delete (or omit when using --pattern)
+        branch_name: Option<String>,
+        /// Delete all branches matching a regex pattern
+        #[clap(long, short = 'p')]
+        pattern: Option<String>,
         /// Force deletion without confirmation
         #[clap(long, short = 'f')]
         force: bool,
@@ -69,6 +72,9 @@ pub enum Subcommands {
     List {
         /// Filter branches by name (case-insensitive substring match)
         filter: Option<String>,
+        /// Filter branches by regex pattern (e.g. "feat/.*" or "^fix/")
+        #[clap(long, short = 'p')]
+        pattern: Option<String>,
         /// Show only local branches
         #[clap(long, short = 'l', conflicts_with = "remote")]
         local: bool,
@@ -137,6 +143,20 @@ pub enum Subcommands {
         #[clap(long, conflicts_with = "target_branch")]
         unstack: bool,
     },
+    /// Rename an existing branch
+    ///
+    /// This will rename a branch while keeping all its commits and history.
+    /// The new name will be normalized (spaces replaced with dashes, etc).
+    ///
+    #[cfg(feature = "legacy")]
+    #[clap(verbatim_doc_comment)]
+    Rename {
+        /// Current name of the branch
+        old_name: String,
+        /// New name for the branch
+        new_name: String,
+    },
+
     /// Apply a branch to the workspace (non-legacy path)
     ///
     /// If you want to apply an unapplied branch to your workspace so you

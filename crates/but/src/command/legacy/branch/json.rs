@@ -9,6 +9,13 @@ pub struct BranchNewOutput {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct BranchRenameOutput {
+    pub old_name: String,
+    pub new_name: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BranchListOutput {
     pub applied_stacks: Vec<StackOutput>,
     pub branches: Vec<BranchOutput>,
