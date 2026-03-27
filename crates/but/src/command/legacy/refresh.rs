@@ -11,6 +11,12 @@ pub fn handle(
     updates: bool,
     app_settings: &but_settings::AppSettings,
 ) -> anyhow::Result<()> {
+    // Safety net: check if sync is paused via marker file.
+    // This catches the case where the background process was already spawned
+    // before the user ran `but sync pause`.
+    if crate::command::sync::is_sync_paused(&ctx.gitdir) {
+        return Ok(());
+    }
     // Obtain a lock to prevent concurrent background refreshes of remote data
     // Only acquire this lock if we're actually performing remote data operations
     let _exclusive_access = if fetch || prs || ci {

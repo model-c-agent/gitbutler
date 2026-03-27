@@ -215,6 +215,11 @@ pub fn init_ctx(
                 return Ok(ctx);
             }
 
+            // Check if sync is paused via marker file
+            if crate::command::sync::is_sync_paused(&ctx.gitdir) {
+                return Ok(ctx);
+            }
+
             // Determine what needs to be synced based on intervals and lock availability
             let sync_operations =
                 determine_sync_operations(&ctx, fetch_interval_minutes, last_fetch);
