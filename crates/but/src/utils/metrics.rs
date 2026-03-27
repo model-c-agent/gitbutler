@@ -2,7 +2,9 @@ use std::{collections::HashMap, env};
 
 use but_settings::AppSettings;
 use clap::ValueEnum;
+#[cfg(feature = "native")]
 use command_group::AsyncCommandGroup;
+#[cfg(feature = "native")]
 use posthog_rs::Client;
 use rand::{Rng, distr::OpenClosed01};
 use serde::{Deserialize, Serialize};
@@ -24,6 +26,7 @@ pub(super) mod types {
     /// A metrics implementation to run in the background, receiving metrics to send through a channel.
     #[derive(Debug, Clone)]
     pub struct BackgroundMetrics {
+        #[cfg(not(target_os = "wasi"))]
         pub(super) sender: Option<tokio::sync::mpsc::UnboundedSender<Event>>,
     }
 }
@@ -71,6 +74,8 @@ impl Subcommands {
     pub(crate) fn to_metrics_command(&self) -> CommandName {
         use CommandName::*;
 
+        #[cfg(feature = "native")]
+        use crate::args::link;
         use crate::args::{alias as alias_args, branch, claude, cursor, forge, skill, worktree};
         match self {
             #[cfg(feature = "legacy")]
@@ -212,11 +217,14 @@ impl Subcommands {
             Subcommands::Move { .. } => Rub,
             #[cfg(feature = "legacy")]
             Subcommands::Pick { .. } => Pick,
+            #[cfg(feature = "native")]
             Subcommands::Skill(skill::Platform { cmd }) => match cmd {
                 skill::Subcommands::Install { .. } => SkillInstall,
                 skill::Subcommands::Check { .. } => SkillCheck,
             },
             Subcommands::Edit { .. } => Edit,
+            #[cfg(feature = "native")]
+            Subcommands::Link(link::Platform { .. }) => Unknown,
             Subcommands::Onboarding | Subcommands::EvalHook => Unknown,
         }
     }
@@ -323,6 +331,7 @@ impl Event {
 }
 
 impl BackgroundMetrics {
+    #[cfg(feature = "native")]
     pub fn new_in_background(app_settings: &AppSettings) -> Self {
         let metrics_permitted = app_settings.telemetry.app_metrics_enabled;
         // Only create client and sender if metrics are permitted
@@ -349,7 +358,16 @@ impl BackgroundMetrics {
         metrics
     }
 
+    #[cfg(not(feature = "native"))]
+    pub fn new_in_background(_app_settings: &AppSettings) -> Self {
+        BackgroundMetrics {
+            #[cfg(not(target_os = "wasi"))]
+            sender: None,
+        }
+    }
+
     pub fn capture(&self, event: Event) {
+        #[cfg(not(target_os = "wasi"))]
         if let Some(sender) = &self.sender {
             let _ = sender.send(event);
         }
@@ -357,11 +375,15 @@ impl BackgroundMetrics {
 }
 
 /// Capture an event *only* if `app_settings.telemetry.app_metrics_enabled` is `true`.
+#[cfg(feature = "native")]
 pub async fn capture_event_blocking(app_settings: &AppSettings, event: Event) {
     if let Some(client) = posthog_client(app_settings.clone()) {
         do_capture(&client.await, event, app_settings).await.ok();
     }
 }
+
+#[cfg(not(feature = "native"))]
+pub async fn capture_event_blocking(_app_settings: &AppSettings, _event: Event) {}
 
 /// Note that `client` is *only* available if telemetry is enabled.
 async fn do_capture(
@@ -387,6 +409,7 @@ async fn do_capture(
     client.capture(posthog_event).await
 }
 
+#[cfg(feature = "native")]
 fn machine() -> String {
     if let Ok(id) = machine_uid::get() {
         format!(
@@ -399,6 +422,7 @@ fn machine() -> String {
 }
 
 /// Creates a PostHog client if metrics are enabled and the API key is set.
+#[cfg(feature = "native")]
 fn posthog_client(app_settings: AppSettings) -> Option<impl Future<Output = posthog_rs::Client>> {
     if app_settings.telemetry.app_metrics_enabled
         && let Some(api_key) = option_env!("POSTHOG_API_KEY")
@@ -420,57 +444,41 @@ impl<T> ResultMetricsExt for anyhow::Result<T> {
             return self.map(|_| ());
         };
 
-        let props = Props::from_result(start, &self);
-        let Some(v) = command.to_possible_value() else {
-            tracing::warn!("BUG: didn't get string value for {command:?}");
-            return self.map(|_| ());
-        };
+        #[cfg(feature = "native")]
+        {
+            let props = Props::from_result(start, &self);
+            let Some(v) = command.to_possible_value() else {
+                tracing::warn!("BUG: didn't get string value for {command:?}");
+                return self.map(|_| ());
+            };
 
-        let binary_path = {
-            #[cfg(target_os = "linux")]
-            {
-                // Under Linux, the /proc/self/exe magic symlink is maintained by the kernel to
-                // point to the executable. The kernel keeps the executable's inode alive even if
-                // the file has been moved or deleted, and therefore this symlink can be executed
-                // as long as the process is running.
-                //
-                // Resolving the symlink with std::env::current_exe() and executing that fails if
-                // the binary has been removed, which is the case when emitting metrics for the
-                // `update install` command (the executable removes itself at the end of the
-                // command).
-                std::path::PathBuf::from("/proc/self/exe")
-            }
-            #[cfg(not(target_os = "linux"))]
-            {
-                // Under macOS and Windows, there's no equivalent to Linux's /proc/self/exe, so we
-                // can't easily refer to the "current process' program" like we can there.
-                //
-                // On macOS, std::env::current_exe() is implemented with _NSGetExecutablePath,
-                // which provides the path the executable was launched with, so in the `but update
-                // install` case, metrics will actually be emitted with the _new_ version rather
-                // than the one that actually ran the command. The only way around this is to emit
-                // metrics before cleaning up the old version, but that does not seem worthwhile at
-                // the moment.
-                //
-                // On Windows, current_exe() is implemented with GetModuleFileNameW, which also
-                // returns the path with which the executable was launched, and so has the same
-                // problem. Although at the time of writing, `update install` is not implemented
-                // for Windows.
-                std::env::current_exe()?
-            }
-        };
+            let binary_path = {
+                #[cfg(target_os = "linux")]
+                {
+                    std::path::PathBuf::from("/proc/self/exe")
+                }
+                #[cfg(not(target_os = "linux"))]
+                {
+                    std::env::current_exe()?
+                }
+            };
 
-        tokio::process::Command::new(binary_path)
-            .arg("metrics")
-            .arg("--command-name")
-            .arg(v.get_name())
-            .arg("--props")
-            .arg(props.as_json_string())
-            .stderr(std::process::Stdio::null())
-            .stdout(std::process::Stdio::null())
-            .group()
-            .kill_on_drop(false)
-            .spawn()?;
+            tokio::process::Command::new(binary_path)
+                .arg("metrics")
+                .arg("--command-name")
+                .arg(v.get_name())
+                .arg("--props")
+                .arg(props.as_json_string())
+                .stderr(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .group()
+                .kill_on_drop(false)
+                .spawn()?;
+        }
+        #[cfg(not(feature = "native"))]
+        {
+            let _ = (start, command);
+        }
         self.map(|_| ())
     }
 }
