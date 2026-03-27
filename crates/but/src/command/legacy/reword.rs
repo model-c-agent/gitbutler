@@ -100,6 +100,13 @@ fn edit_branch_name(
             if let Some(out) = out.for_human() {
                 writeln!(out, "Renamed branch '{branch_name}' to '{new_name}'")?;
             }
+            if let Some(out) = out.for_json() {
+                out.write_value(serde_json::json!({
+                    "ok": true,
+                    "old_name": branch_name,
+                    "new_name": new_name,
+                }))?;
+            }
             return Ok(());
         }
     }
@@ -198,11 +205,24 @@ fn edit_commit_message_by_id_and_reword_commit(
                 new_commit_oid.new_commit.attach(&repo).shorten_or_id()
             )?;
         }
+        if let Some(out) = out.for_json() {
+            out.write_value(serde_json::json!({
+                "ok": true,
+                "new_commit_id": new_commit_oid.new_commit.to_string(),
+                "old_commit_id": commit_oid.to_string(),
+            }))?;
+        }
 
         Ok(())
     } else {
         if let Some(out) = out.for_human() {
             writeln!(out, "No changes to commit message - nothing to be done")?;
+        }
+        if let Some(out) = out.for_json() {
+            out.write_value(serde_json::json!({
+                "ok": true,
+                "no_change": true,
+            }))?;
         }
         Ok(())
     }

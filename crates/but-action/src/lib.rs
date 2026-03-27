@@ -8,7 +8,7 @@ use std::{
 
 use but_core::{TreeChange, sync::RepoExclusive};
 use but_ctx::{Context, ProjectHandleOrLegacyProjectId};
-use but_hunk_assignment::CommitAbsorption;
+use but_hunk_assignment::{CommitAbsorption, CommitMap};
 use but_workspace::legacy::ui::StackEntry;
 use gitbutler_branch::BranchCreateRequest;
 use gitbutler_stack::{Target, VirtualBranchesHandle};
@@ -69,7 +69,7 @@ pub fn auto_commit_simple(
     llm: Option<&but_llm::LLMProvider>,
     absorption_plan: Vec<CommitAbsorption>,
     perm: &mut RepoExclusive,
-) -> anyhow::Result<usize> {
+) -> anyhow::Result<(usize, CommitMap)> {
     auto_commit::auto_commit_simple(
         repo,
         project_data_dir,

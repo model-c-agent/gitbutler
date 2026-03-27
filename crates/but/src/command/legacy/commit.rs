@@ -462,40 +462,60 @@ pub(crate) fn commit(
         final_commit_message,
     )?;
 
-    if !outcome.rejected_specs.is_empty() {
-        tracing::warn!(
-            ?outcome.rejected_specs,
-            "Failed to commit at least one selected change"
-        );
-        if let Some(out) = out.for_human() {
-            writeln!(
-                out,
-                "{}",
-                "Warning: Some selected changes could not be committed.".yellow()
-            )?;
-        }
-    }
+    match outcome.new_commit {
+        Some(id) => {
+            if !outcome.rejected_specs.is_empty() {
+                tracing::warn!(
+                    ?outcome.rejected_specs,
+                    "Failed to commit at least one selected change"
+                );
+                if let Some(out) = out.for_human() {
+                    writeln!(
+                        out,
+                        "{}",
+                        "Warning: Some selected changes could not be committed.".yellow()
+                    )?;
+                }
+            }
 
-    if let Some(out) = out.for_human() {
-        let commit_short = match outcome.new_commit {
-            Some(id) => id.to_hex_with_len(7).to_string(),
-            None => "unknown".to_string(),
-        };
-        writeln!(
-            out,
-            "{} {} {} {}",
-            "✓ Created commit".green(),
-            commit_short.magenta(),
-            "on branch".green(),
-            target_branch.name.to_str_lossy().yellow()
-        )?;
-    } else if let Some(json_out) = out.for_json() {
-        let commit_data = serde_json::json!({
-            "commit_id": outcome.new_commit.map(|id| id.to_string()),
-            "branch": target_branch.name.to_str_lossy(),
-            "branch_tip": outcome.new_commit.map(|id| id.to_string()),
-        });
-        json_out.write_value(commit_data)?;
+            if let Some(out) = out.for_human() {
+                let commit_short = id.to_hex_with_len(7).to_string();
+                writeln!(
+                    out,
+                    "{} {} {} {}",
+                    "✓ Created commit".green(),
+                    commit_short.magenta(),
+                    "on branch".green(),
+                    target_branch.name.to_str_lossy().yellow()
+                )?;
+            } else if let Some(json_out) = out.for_json() {
+                let commit_data = serde_json::json!({
+                    "commit_id": id.to_string(),
+                    "branch": target_branch.name.to_str_lossy(),
+                    "branch_tip": id.to_string(),
+                });
+                json_out.write_value(commit_data)?;
+            }
+        }
+        None => {
+            tracing::error!(
+                ?outcome.rejected_specs,
+                "Commit produced no result — all changes were rejected"
+            );
+            if out.for_json().is_some() {
+                let error_data = serde_json::json!({
+                    "ok": false,
+                    "error": "commit_produced_no_result",
+                    "rejected_specs": outcome.rejected_specs.len(),
+                });
+                out.for_json().unwrap().write_value(error_data)?;
+                std::process::exit(1);
+            }
+            bail!(
+                "Commit produced no result — all selected changes were rejected.\n\
+                 Run 'but status' to check the current state of your changes."
+            );
+        }
     }
 
     // Run post-commit hook unless --no-hooks was specified

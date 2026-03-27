@@ -102,7 +102,7 @@ pub(crate) fn auto_commit(
             emitter(&event_name, event.emit_payload());
             Err(e)
         }
-        Ok(number_of_rejections) => {
+        Ok((number_of_rejections, _commit_map)) => {
             let event = AutoCommitEvent::Completed;
             let event_name = event.event_name(&project_id);
             let emitter = emitter.clone();
@@ -119,10 +119,10 @@ pub(crate) fn auto_commit_simple(
     llm: Option<&but_llm::LLMProvider>,
     absorption_plan: Vec<but_hunk_assignment::CommitAbsorption>,
     perm: &mut RepoExclusive,
-) -> anyhow::Result<usize> {
+) -> anyhow::Result<(usize, CommitMap)> {
     let commit_map = CommitMap::default();
 
-    apply_commit_changes(
+    let (total_rejected, commit_map) = apply_commit_changes(
         None,
         repo,
         project_data_dir,
@@ -132,7 +132,8 @@ pub(crate) fn auto_commit_simple(
         perm,
         commit_map,
         None,
-    )
+    )?;
+    Ok((total_rejected, commit_map))
 }
 
 #[expect(clippy::too_many_arguments)]
@@ -146,7 +147,7 @@ fn apply_commit_changes(
     perm: &mut RepoExclusive,
     mut commit_map: CommitMap,
     emitter: Option<std::sync::Arc<AutoCommitEmitter>>,
-) -> anyhow::Result<usize> {
+) -> anyhow::Result<(usize, CommitMap)> {
     let mut total_rejected = 0;
     for absorption in absorption_plan {
         let diff_specs = convert_assignments_to_diff_specs(
@@ -201,7 +202,7 @@ fn apply_commit_changes(
         total_rejected += outcome.rejected_specs.len();
     }
 
-    Ok(total_rejected)
+    Ok((total_rejected, commit_map))
 }
 
 #[derive(Debug, Clone)]

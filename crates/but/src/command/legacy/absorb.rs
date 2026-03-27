@@ -136,7 +136,7 @@ fn absorb_assignments(
     new: bool,
     plan_json: Option<JsonAbsorbOutput>,
 ) -> anyhow::Result<()> {
-    let total_rejected = if new {
+    let (total_rejected, commit_map) = if new {
         but_action::auto_commit_simple(repo, data_dir, context_lines, None, absorption_plan, perm)?
     } else {
         but_api::legacy::absorb::absorb_impl(absorption_plan, perm, repo, data_dir)?
@@ -167,9 +167,15 @@ fn absorb_assignments(
     } else if let Some(out) = out.for_json() {
         // Combine plan and result into a single JSON write to avoid overwriting
         // the plan in the JSON buffer (which would lose absorption plan data).
+        let commit_mapping: serde_json::Map<String, serde_json::Value> = commit_map
+            .mappings()
+            .iter()
+            .map(|(old, new)| (old.to_string(), serde_json::Value::String(new.to_string())))
+            .collect();
         let mut combined = serde_json::json!({
             "ok": total_rejected == 0,
             "rejected": total_rejected,
+            "commit_mapping": serde_json::Value::Object(commit_mapping),
         });
         if let Some(plan) = plan_json {
             combined["plan"] = serde_json::to_value(plan).unwrap_or(serde_json::Value::Null);

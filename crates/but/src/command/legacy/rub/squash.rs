@@ -296,6 +296,8 @@ fn squash_commits_internal(
             "ok": true,
             "new_commit_id": final_commit_oid.to_string(),
             "squashed_count": source_oids.len(),
+            "source_commit_ids": source_oids.iter().map(|oid| oid.to_string()).collect::<Vec<_>>(),
+            "target_commit_id": target_oid.to_string(),
         }))?;
     }
     Ok(())

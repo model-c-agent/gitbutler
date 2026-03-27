@@ -43,7 +43,7 @@ pub fn absorb(ctx: &mut Context, absorption_plan: Vec<CommitAbsorption>) -> anyh
         )
         .ok(); // Ignore errors for snapshot creation
 
-    let total_rejected = absorb_impl(absorption_plan, guard.write_permission(), &repo, &data_dir)?;
+    let (total_rejected, _commit_map) = absorb_impl(absorption_plan, guard.write_permission(), &repo, &data_dir)?;
 
     // Refresh the workspace commit so `gitbutler/workspace` HEAD stays in sync
     // with the rewritten branch commits. Without this, tools that inspect HEAD
@@ -58,7 +58,7 @@ pub fn absorb_impl(
     perm: &mut RepoExclusive,
     repo: &gix::Repository,
     data_dir: &Path,
-) -> anyhow::Result<usize> {
+) -> anyhow::Result<(usize, CommitMap)> {
     // Apply each group to its target commit and track failures
     let mut total_rejected = 0;
     let mut commit_map = CommitMap::default();
@@ -87,7 +87,7 @@ pub fn absorb_impl(
         }
         total_rejected += outcome.rejected_specs.len();
     }
-    Ok(total_rejected)
+    Ok((total_rejected, commit_map))
 }
 
 /// Generate an absorption plan based on the provided target, based on hunk dependencies, assignments and other heuristics

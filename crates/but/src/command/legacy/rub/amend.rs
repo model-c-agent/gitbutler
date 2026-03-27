@@ -42,10 +42,20 @@ pub(crate) fn uncommitted_to_commit(
             .unwrap_or_default();
         writeln!(out, "Amended {description} → {new_commit}")?;
     } else if let Some(out) = out.for_json() {
-        out.write_value(serde_json::json!({
+        let mut json = serde_json::json!({
             "ok": true,
             "new_commit_id": outcome.new_commit.map(|c| c.to_string()),
-        }))?;
+            "old_commit_id": oid.to_string(),
+        });
+        if let Some(rebase_output) = &outcome.rebase_output {
+            let mapping: serde_json::Map<String, serde_json::Value> = rebase_output
+                .commit_mapping
+                .iter()
+                .map(|(_, old, new)| (old.to_string(), serde_json::Value::String(new.to_string())))
+                .collect();
+            json["commit_mapping"] = serde_json::Value::Object(mapping);
+        }
+        out.write_value(json)?;
     }
     Ok(())
 }
@@ -87,10 +97,20 @@ pub(crate) fn assignments_to_commit(
             writeln!(out, "Amended unassigned files → {new_commit}")?;
         }
     } else if let Some(out) = out.for_json() {
-        out.write_value(serde_json::json!({
+        let mut json = serde_json::json!({
             "ok": true,
             "new_commit_id": outcome.new_commit.map(|c| c.to_string()),
-        }))?;
+            "old_commit_id": oid.to_string(),
+        });
+        if let Some(rebase_output) = &outcome.rebase_output {
+            let mapping: serde_json::Map<String, serde_json::Value> = rebase_output
+                .commit_mapping
+                .iter()
+                .map(|(_, old, new)| (old.to_string(), serde_json::Value::String(new.to_string())))
+                .collect();
+            json["commit_mapping"] = serde_json::Value::Object(mapping);
+        }
+        out.write_value(json)?;
     }
     Ok(())
 }

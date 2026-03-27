@@ -371,6 +371,21 @@ impl HunkAssignment {
     }
 }
 
+/// Sets the assignment for a hunk, overriding any hunk lock enforcement.
+///
+/// This is equivalent to [`assign`] but skips the hunk lock reconciliation step,
+/// allowing hunks to be assigned to any stack regardless of dependencies.
+pub fn assign_override_locks(
+    db: HunkAssignmentsHandleMut,
+    repo: &gix::Repository,
+    workspace: &but_graph::projection::Workspace,
+    requests: Vec<HunkAssignmentRequest>,
+    deps: Option<&HunkDependencies>,
+    context_lines: u32,
+) -> Result<Vec<AssignmentRejection>> {
+    assign_inner(db, repo, workspace, requests, deps, context_lines, true)
+}
+
 /// Applies assignment requests by reconciling them with the current worktree and persisted assignments.
 /// Persists the updated assignments and returns `Ok(())` on success.
 ///
@@ -421,6 +436,88 @@ pub fn assign(
     state::set_assignments(db, with_requests)?;
 
     Ok(())
+}
+
+fn assign_inner(
+    db: HunkAssignmentsHandleMut,
+    repo: &gix::Repository,
+    workspace: &but_graph::projection::Workspace,
+    requests: Vec<HunkAssignmentRequest>,
+    deps: Option<&HunkDependencies>,
+    context_lines: u32,
+    override_locks: bool,
+) -> Result<Vec<AssignmentRejection>> {
+    let identifiable_stacks = workspace
+        .stacks
+        .iter()
+        .filter_map(|s| s.id)
+        .collect::<Vec<_>>();
+
+    let worktree_changes: Vec<but_core::TreeChange> =
+        but_core::diff::worktree_changes(repo)?.changes;
+    let mut worktree_assignments = vec![];
+    for change in &worktree_changes {
+        let diff = change.unified_patch(repo, context_lines);
+        worktree_assignments.extend(HunkAssignment::from_tree_change(
+            change,
+            diff.ok().flatten(),
+        ));
+    }
+
+    // Reconcile worktree with the persisted assignments
+    let persisted_assignments = state::assignments(db.to_ref())?;
+    let with_worktree = reconcile::assignments(
+        &worktree_assignments,
+        &persisted_assignments,
+        &identifiable_stacks,
+        MultipleOverlapping::SetMostLines,
+        true,
+    );
+
+    // Reconcile with the requested changes
+    let with_requests = reconcile::assignments(
+        &with_worktree,
+        &requests_to_assignments(requests.clone()),
+        &identifiable_stacks,
+        MultipleOverlapping::SetMostLines,
+        true,
+    );
+
+    // Reconcile with hunk locks (skipped when override_locks is true)
+    let final_assignments = if override_locks {
+        with_requests
+    } else {
+        let lock_assignments = hunk_dependency_assignments(deps);
+        reconcile::assignments(
+            &with_requests,
+            &lock_assignments,
+            &identifiable_stacks,
+            MultipleOverlapping::SetNone,
+            false,
+        )
+    };
+
+    state::set_assignments(db, final_assignments.clone())?;
+
+    // Request where the stack_id is different from the outcome are considered rejections - this is due to locking
+    // Collect all the rejected requests together with the locks that caused the rejection
+    let mut rejections = vec![];
+    for req in requests {
+        let locks = final_assignments
+            .iter()
+            .filter(|assignment| {
+                req.matches_assignment(assignment) && req.stack_id != assignment.stack_id
+            })
+            .flat_map(|assignment| assignment.hunk_locks.clone().unwrap_or_default())
+            .collect_vec();
+        if !locks.is_empty() {
+            rejections.push(AssignmentRejection {
+                request: req.clone(),
+                locks,
+            });
+        }
+    }
+    Ok(rejections)
 }
 
 pub fn assignments_with_fallback(
@@ -715,6 +812,11 @@ impl CommitMap {
     /// Add a mapping from old commit ID to new commit ID
     pub fn add_mapping(&mut self, old_commit_id: ObjectId, new_commit_id: ObjectId) {
         self.map.insert(old_commit_id, new_commit_id);
+    }
+
+    /// Returns a reference to the underlying old-to-new commit ID mappings
+    pub fn mappings(&self) -> &HashMap<ObjectId, ObjectId> {
+        &self.map
     }
 }
 
