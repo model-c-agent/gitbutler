@@ -3,8 +3,15 @@
 //! Marks onboarding as complete and shows metrics info message (for human output only).
 
 use anyhow::Result;
+use but_settings::AppSettingsWithDiskSync;
 
 use crate::utils::OutputChannel;
+
+fn load_app_settings_sync() -> Result<AppSettingsWithDiskSync> {
+    let config_dir = but_path::app_config_dir()?;
+    std::fs::create_dir_all(&config_dir)?;
+    AppSettingsWithDiskSync::new_with_customization(config_dir, None)
+}
 
 /// Handle the onboarding command.
 ///
@@ -13,7 +20,7 @@ use crate::utils::OutputChannel;
 /// If already complete, does nothing (silent).
 pub fn handle(out: &mut OutputChannel) -> Result<()> {
     // Load settings to check onboarding status
-    let app_settings_sync = match crate::command::config::load_app_settings_sync() {
+    let app_settings_sync = match load_app_settings_sync() {
         Ok(settings) => settings,
         Err(err) => {
             tracing::warn!(?err, "Failed to load app settings for onboarding check");

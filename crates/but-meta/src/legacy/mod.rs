@@ -28,8 +28,31 @@ use tracing::instrument;
 
 use crate::virtual_branches_legacy_types::{Stack, StackBranch, VirtualBranches};
 
-#[cfg(feature = "legacy")]
+#[cfg(all(feature = "legacy", not(target_os = "wasi")))]
 pub mod storage;
+
+#[cfg(all(feature = "legacy", target_os = "wasi"))]
+pub mod storage {
+    //! WASI stub: reads/writes virtual-branches TOML directly without DB synchronization.
+    use std::path::Path;
+    use crate::virtual_branches_legacy_types::VirtualBranches;
+
+    /// Read virtual-branches state from the TOML file (WASI: no DB sync).
+    pub fn read_synced_virtual_branches(path: &Path) -> anyhow::Result<VirtualBranches> {
+        let content = std::fs::read_to_string(path)?;
+        Ok(toml::from_str(&content)?)
+    }
+
+    /// Write virtual-branches state to the TOML file (WASI: no DB sync).
+    pub fn write_virtual_branches_and_sync(path: &Path, vb: &VirtualBranches) -> anyhow::Result<()> {
+        let content = toml::to_string(vb)?;
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        but_fs::write(path, content.as_bytes())?;
+        Ok(())
+    }
+}
 
 #[derive(Debug, Clone)]
 struct Snapshot {

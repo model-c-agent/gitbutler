@@ -1,7 +1,8 @@
+#[cfg(not(target_os = "wasi"))]
 use but_core::sync::LockScope::AllOperations;
-pub use but_core::sync::{
-    LockFile, RepoExclusive, RepoExclusiveGuard, RepoShared, RepoSharedGuard,
-};
+pub use but_core::sync::{RepoExclusive, RepoExclusiveGuard, RepoShared, RepoSharedGuard};
+#[cfg(not(target_os = "wasi"))]
+pub use but_core::sync::LockFile;
 
 use crate::Context;
 
@@ -15,6 +16,7 @@ impl Context {
     /// so it can't go stale.
     ///
     /// # IMPORTANT: KEEP THE LOCK ALIVE!
+    #[cfg(not(target_os = "wasi"))]
     pub fn try_exclusive_access(&mut self) -> anyhow::Result<LockFile> {
         but_core::sync::try_exclusive_inter_process_access(&self.gitdir, AllOperations)
     }

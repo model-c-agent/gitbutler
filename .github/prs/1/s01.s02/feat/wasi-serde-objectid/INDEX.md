@@ -1,4 +1,3 @@
-<<<<<<< ours
 # s02: Abstract ObjectId in but-serde to Gate git2::Oid for WASI
 
 | Field     | Value                                              |
@@ -134,36 +133,3 @@ After this sub-PR:
 - [ ] `cargo check -p but-serde --features legacy` still compiles (no regression)
 - [ ] `cargo test -p but-serde` passes (no behavioral changes)
 - [ ] No new abstraction type introduced (gix::ObjectId is already the universal type)
-|||||||
-=======
-# s02: Abstract ObjectId in but-serde to Gate git2::Oid for WASI
-
-| Field     | Value                                              |
-|-----------|----------------------------------------------------|
-| **ID**    | s02                                                |
-| **Branch**| `pr1/s01.s02/feat/wasi-serde-objectid`             |
-| **Anchor**| `pr1/s01/feat/wasi-feature-flags`                  |
-| **Deps**  | s01                                                |
-| **Size**  | M                                                  |
-| **Commit**| `feat: abstract ObjectId in but-serde to gate git2::Oid for WASI` |
-
-## Scope
-
-- Introduce a thin ObjectId wrapper/type alias in `but-serde` that works with both `git2::Oid` and `gix::ObjectId`
-- Gate `git2::Oid`-specific serialization behind `#[cfg(not(feature = "wasi"))]`
-- Provide `gix::ObjectId` equivalents for WASI builds
-
-## Files
-
-- `crates/but-serde/Cargo.toml`
-- `crates/but-serde/src/lib.rs`
-
-## Risk
-
-`git2::Oid` helpers are deeply embedded throughout the codebase. Grep all usage sites to understand the full impact surface.
-
-## Acceptance Criteria
-
-- `cargo check -p but-serde --features wasi` compiles without pulling in `git2`
-- Native tests (`cargo test -p but-serde`) continue to pass
->>>>>>> theirs

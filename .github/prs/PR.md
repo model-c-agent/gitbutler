@@ -57,17 +57,26 @@ Given a range like `s02-s08.s09/feat/wasi-first-compile`:
     │   ├── INDEX.md
     │   ├── MEMORY.md
     │   ├── AGENT.md
-    │   └── QUESTIONS.md                     ← Questions for coordinator (created when needed)
+    │   ├── QUESTIONS.md                     ← Questions for coordinator (created when needed)
+    │   ├── INDEX.patch                      ← Proposed changes as unified diff (Step 3)
+    │   ├── COMMIT.msg                       ← Commit message + PR description (maintained throughout)
+    │   └── RESULTS.md                       ← Apply outcome from but agent (Step 6)
     ├── s01.s02/<type>/<name>/               ← Depends on s01
     │   ├── INDEX.md
     │   ├── MEMORY.md
     │   ├── AGENT.md
-    │   └── QUESTIONS.md
+    │   ├── QUESTIONS.md
+    │   ├── INDEX.patch
+    │   ├── COMMIT.msg
+    │   └── RESULTS.md
     └── s01.s04.s08/<type>/<name>/           ← Depends on s01 and s04
         ├── INDEX.md
         ├── MEMORY.md
         ├── AGENT.md
-        └── QUESTIONS.md
+        ├── QUESTIONS.md
+        ├── INDEX.patch
+        ├── COMMIT.msg
+        └── RESULTS.md
 ```
 
 ## Agent Hierarchy

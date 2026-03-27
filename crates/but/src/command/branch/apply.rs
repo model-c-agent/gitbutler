@@ -1,9 +1,13 @@
+#[cfg(feature = "native")]
 use but_ctx::Context;
+#[cfg(feature = "native")]
 use gix::reference::Category;
 
+#[cfg(feature = "native")]
 use crate::utils::OutputChannel;
 
 /// Apply a branch to the workspace, and return the full ref name to it.
+#[cfg(feature = "native")]
 pub fn apply(mut ctx: Context, branch_name: &str, out: &mut OutputChannel) -> anyhow::Result<()> {
     let reference = {
         let repo = ctx.repo.get()?;

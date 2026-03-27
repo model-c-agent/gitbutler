@@ -41,6 +41,7 @@ impl From<LockScope> for PathBuf {
 ///
 /// The lock is automatically released when the returned [`LockFile`] is dropped, or when the process quits for any reason,
 /// so it can't go stale.
+#[cfg(not(target_os = "wasi"))]
 pub fn try_exclusive_inter_process_access(
     project_data: impl AsRef<Path>,
     scope: LockScope,
@@ -218,6 +219,7 @@ static WORKTREE_LOCKS: parking_lot::Mutex<BTreeMap<PathBuf, Arc<parking_lot::RwL
 /// A file-based lock that can indicate exclusive access.
 ///
 /// As opposed to its actual implementation, it will ignore failures due to lack of filesystem support.
+#[cfg(not(target_os = "wasi"))]
 pub struct LockFile {
     /// The actual lock implementation.
     inner: fslock::LockFile,
@@ -226,6 +228,7 @@ pub struct LockFile {
 }
 
 /// Lifecycle and operations
+#[cfg(not(target_os = "wasi"))]
 impl LockFile {
     /// Open the file at `path`, possibly creating it, for the purpose of using it for file-based locking.
     pub fn open(path: impl Into<PathBuf>) -> Result<Self, fslock::Error> {

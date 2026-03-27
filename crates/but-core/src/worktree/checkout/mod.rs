@@ -39,6 +39,9 @@ pub struct Outcome {
     pub num_added_or_updated_files: usize,
 }
 
+#[cfg(not(target_os = "wasi"))]
 pub(crate) mod function;
+#[cfg(not(target_os = "wasi"))]
 mod tree;
+#[cfg(not(target_os = "wasi"))]
 mod utils;

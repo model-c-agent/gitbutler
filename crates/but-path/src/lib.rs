@@ -1,7 +1,7 @@
 //! A version of `tauri::AppHandle::path()` for use outside `tauri`.
 use std::{env, path::PathBuf};
 
-use anyhow::{Context, bail};
+use anyhow::Context;
 
 /// The directory to store application-wide data in, like logs, **one per channel**.
 ///
@@ -10,9 +10,19 @@ pub fn app_data_dir() -> anyhow::Result<PathBuf> {
     if let Some(test_dir) = std::env::var_os("E2E_TEST_APP_DATA_DIR") {
         return Ok(PathBuf::from(test_dir).join("com.gitbutler.app"));
     }
-    dirs::data_dir()
-        .ok_or(anyhow::anyhow!("Could not get app data dir"))
-        .map(|dir| dir.join(identifier()))
+    #[cfg(not(target_os = "wasi"))]
+    {
+        dirs::data_dir()
+            .ok_or(anyhow::anyhow!("Could not get app data dir"))
+            .map(|dir| dir.join(identifier()))
+    }
+    #[cfg(target_os = "wasi")]
+    {
+        Ok(PathBuf::from(
+            env::var("GITBUTLER_DATA_DIR").unwrap_or_else(|_| "/tmp/gitbutler/data".to_string()),
+        )
+        .join(identifier()))
+    }
 }
 
 /// The directory to store logs in, **one per channel**.
@@ -33,14 +43,23 @@ pub fn app_log_dir() -> anyhow::Result<PathBuf> {
     if let Some(test_dir) = std::env::var_os("E2E_TEST_APP_DATA_DIR") {
         return Ok(PathBuf::from(test_dir).join("logs"));
     }
-    if cfg!(target_os = "macos") {
-        dirs::home_dir()
-            .with_context(|| "Couldn't resolve home directory")
-            .map(|dir| dir.join("Library/Logs").join(identifier()))
-    } else {
-        dirs::data_local_dir()
-            .with_context(|| "Couldn't resolve local data directory")
-            .map(|dir| dir.join(identifier()).join("logs"))
+    #[cfg(not(target_os = "wasi"))]
+    {
+        if cfg!(target_os = "macos") {
+            dirs::home_dir()
+                .with_context(|| "Couldn't resolve home directory")
+                .map(|dir| dir.join("Library/Logs").join(identifier()))
+        } else {
+            dirs::data_local_dir()
+                .with_context(|| "Couldn't resolve local data directory")
+                .map(|dir| dir.join(identifier()).join("logs"))
+        }
+    }
+    #[cfg(target_os = "wasi")]
+    {
+        Ok(PathBuf::from(
+            env::var("GITBUTLER_LOG_DIR").unwrap_or_else(|_| "/tmp/gitbutler/logs".to_string()),
+        ))
     }
 }
 
@@ -51,9 +70,20 @@ pub fn app_config_dir() -> anyhow::Result<PathBuf> {
     if let Some(test_dir) = std::env::var_os("E2E_TEST_APP_DATA_DIR") {
         return Ok(PathBuf::from(test_dir).join("gitbutler"));
     }
-    dirs::config_dir()
-        .ok_or(anyhow::anyhow!("Could not get app data dir"))
-        .map(|dir| dir.join("gitbutler"))
+    #[cfg(not(target_os = "wasi"))]
+    {
+        dirs::config_dir()
+            .ok_or(anyhow::anyhow!("Could not get app data dir"))
+            .map(|dir| dir.join("gitbutler"))
+    }
+    #[cfg(target_os = "wasi")]
+    {
+        Ok(PathBuf::from(
+            env::var("GITBUTLER_CONFIG_DIR")
+                .unwrap_or_else(|_| "/tmp/gitbutler/config".to_string()),
+        )
+        .join("gitbutler"))
+    }
 }
 
 /// Returns the platform-specific cache directory for GitButler, **one per channel**.
@@ -86,9 +116,19 @@ pub fn app_cache_dir() -> anyhow::Result<PathBuf> {
     if let Some(test_dir) = std::env::var_os("E2E_TEST_APP_DATA_DIR") {
         return Ok(PathBuf::from(test_dir).join("cache"));
     }
-    dirs::cache_dir()
-        .ok_or(anyhow::anyhow!("Could not get app cache dir"))
-        .map(|dir| dir.join(identifier()))
+    #[cfg(not(target_os = "wasi"))]
+    {
+        dirs::cache_dir()
+            .ok_or(anyhow::anyhow!("Could not get app cache dir"))
+            .map(|dir| dir.join(identifier()))
+    }
+    #[cfg(target_os = "wasi")]
+    {
+        Ok(PathBuf::from(
+            env::var("GITBUTLER_CACHE_DIR").unwrap_or_else(|_| "/tmp/gitbutler/cache".to_string()),
+        )
+        .join(identifier()))
+    }
 }
 
 pub fn identifier() -> &'static str {
@@ -134,7 +174,9 @@ impl AppChannel {
     /// Open the GitButler GUI application for `possibly_project_dir`.
     ///
     /// This uses the deeplink URL scheme registered for the specific channel.
+    #[cfg(not(target_os = "wasi"))]
     pub fn open(&self, possibly_project_dir: &std::path::Path) -> anyhow::Result<()> {
+        use anyhow::bail;
         let scheme = match self {
             AppChannel::Nightly => "but-nightly",
             AppChannel::Release => "but",
@@ -194,6 +236,7 @@ impl AppChannel {
     }
 }
 
+#[cfg(not(target_os = "wasi"))]
 fn clean_env_vars<'a, 'b>(
     var_names: &'a [&'b str],
 ) -> impl Iterator<Item = (&'b str, String)> + 'a {

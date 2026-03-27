@@ -14,8 +14,11 @@ but-core.workspace = true
 
 anyhow.workspace = true
 gix.workspace = true
-serde .workspace = true
+serde.workspace = true
 thiserror.workspace = true
+
+[target.'cfg(not(target_os = "wasi"))'.dependencies]
+git2.workspace = true
 
 [lints]
 workspace = true

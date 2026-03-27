@@ -117,6 +117,10 @@ members = [
     "crates/but-installer",
     # Documentation binary
     "crates/but-clap",
+    # WASI sandbox host for but.wasm
+    "crates/but-wasi-host",
+    # Multi-agent coordination via repo-scoped SQLite
+    "crates/but-link",
 
     ##
     ### Utilities
@@ -187,6 +191,7 @@ but-fs = { path = "crates/but-fs" }
 but-forge = { path = "crates/but-forge" }
 but-oplog = { path = "crates/but-oplog" }
 but-llm = { path = "crates/but-llm" }
+but-link = { path = "crates/but-link" }
 
 gitbutler-git = { path = "crates/gitbutler-git" }
 gitbutler-watcher = { path = "crates/gitbutler-watcher" }

@@ -4,6 +4,7 @@ pub mod checkout;
 use std::{io::Read, path::Path};
 
 use bstr::BStr;
+#[cfg(not(target_os = "wasi"))]
 pub use checkout::function::{safe_checkout, safe_checkout_from_head};
 use gix::filter::plumbing::pipeline::convert::ToGitOutcome;
 

@@ -1061,6 +1061,7 @@ pub enum Subcommands {
     /// ```text
     /// but skill install --global
     /// ```
+    #[cfg(feature = "native")]
     #[clap(verbatim_doc_comment)]
     Skill(skill::Platform),
 

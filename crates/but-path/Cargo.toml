@@ -11,6 +11,9 @@ doctest = false
 
 [dependencies]
 anyhow.workspace = true
+
+# Native-only deps
+[target.'cfg(not(target_os = "wasi"))'.dependencies]
 dirs = "6.0.0"
 open.workspace = true
 [lints]

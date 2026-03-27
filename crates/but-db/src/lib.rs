@@ -62,13 +62,18 @@ use std::path::PathBuf;
 /// Polling helpers to watch for database-backed state changes.
 pub mod poll;
 
+#[cfg(not(target_os = "wasi"))]
 mod handle;
+#[cfg(not(target_os = "wasi"))]
 mod table;
+#[cfg(not(target_os = "wasi"))]
 mod transaction;
 
 /// Cache database helpers and typed accessors.
+#[cfg(not(target_os = "wasi"))]
 pub mod cache;
 /// Migration helpers for applying and configuring database schema updates.
+#[cfg(not(target_os = "wasi"))]
 pub mod migration;
 
 #[rustfmt::skip]
@@ -128,6 +133,7 @@ pub fn map_err(err: rusqlite::Error) -> ::backoff::Error<rusqlite::Error> {
     }
 }
 
+#[cfg(not(target_os = "wasi"))]
 /// The migrations to run, in any order, as ordering is maintained by their date number.
 pub const MIGRATIONS: &[&[M<'static>]] = &[
     table::M_FULLY_REMOVED,
@@ -181,6 +187,7 @@ pub enum SchemaVersion {
 }
 
 /// A structure to receive an application-wide cache.
+#[cfg(not(target_os = "wasi"))]
 pub struct AppCacheHandle {
     /// The open connection to the cache.
     conn: rusqlite::Connection,
@@ -196,10 +203,28 @@ pub struct CacheHandle {
     path: PathBuf,
 }
 
+/// A stub application-wide cache handle for WASI (no SQLite available).
+#[cfg(target_os = "wasi")]
+pub struct AppCacheHandle {
+    /// The path to where the cache would be.
+    path: PathBuf,
+}
+
+#[cfg(target_os = "wasi")]
+impl AppCacheHandle {
+    /// Create a new stub instance (database not available on WASI).
+    pub fn new_in_directory(_cache_dir: Option<PathBuf>) -> Self {
+        AppCacheHandle {
+            path: PathBuf::from("/tmp/gitbutler/cache"),
+        }
+    }
+}
+
 /// An abstraction over an open database connection, and for access to the ORM layer and [transactions](DbHandle::transaction()).
 ///
 /// The underlying sqlite database is set up to use Rusts borrow-checker,
 /// so a mutable borrow is required to start transactions or to make changes to any data.
+#[cfg(not(target_os = "wasi"))]
 pub struct DbHandle {
     /// The opened db connection with migrations applied.
     conn: rusqlite::Connection,
@@ -207,8 +232,31 @@ pub struct DbHandle {
     path: PathBuf,
 }
 
+/// A stub database handle for WASI (no SQLite available).
+#[cfg(target_os = "wasi")]
+pub struct DbHandle {
+    /// The path where the database would be.
+    path: PathBuf,
+}
+
+#[cfg(target_os = "wasi")]
+impl DbHandle {
+    /// Create a new stub instance (database not available on WASI).
+    pub fn new_in_directory(db_dir: impl AsRef<std::path::Path>) -> anyhow::Result<Self> {
+        Ok(DbHandle {
+            path: db_dir.as_ref().to_owned(),
+        })
+    }
+
+    /// Return the path to the standard database file.
+    pub fn db_file_path(db_dir: impl AsRef<std::path::Path>) -> PathBuf {
+        db_dir.as_ref().join("but.sqlite")
+    }
+}
+
 /// A wrapper for a [`rusqlite::Transaction`] to allow ORM handles to be created more easily,
 /// and make sure multiple dependent calls to the ORM can be consistent.
+#[cfg(not(target_os = "wasi"))]
 pub struct Transaction<'conn> {
     /// The actual transaction as holder of the database connection.
     /// It's always set.

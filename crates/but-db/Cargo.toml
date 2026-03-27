@@ -15,7 +15,6 @@ doctest = false
 poll = ["dep:tokio"]
 
 [dependencies]
-rusqlite = { workspace = true, features = ["chrono"] }
 bitflags.workspace = true
 serde.workspace = true
 anyhow.workspace = true
@@ -26,6 +25,10 @@ gix.workspace = true
 # other things
 tracing.workspace = true
 backoff.workspace = true
+
+# Native-only: rusqlite requires C compilation (libsqlite3-sys)
+[target.'cfg(not(target_os = "wasi"))'.dependencies]
+rusqlite = { workspace = true, features = ["chrono"] }
 
 tokio = { workspace = true, features = ["rt-multi-thread", "parking_lot", "time", "sync", "macros"], optional = true }
 

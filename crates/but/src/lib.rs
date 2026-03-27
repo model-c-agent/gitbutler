@@ -45,7 +45,9 @@ use crate::{
     },
 };
 
+#[cfg(feature = "native")]
 mod id;
+#[cfg(feature = "native")]
 pub use id::{CliId, IdMap};
 
 mod alias;
@@ -240,7 +242,10 @@ async fn match_subcommand(
             command::completions::generate_completions(shell).emit_metrics(metrics_ctx)
         }
         Subcommands::Update(update_args::Platform { cmd }) => {
-            command::update::handle(cmd, out, &app_settings).emit_metrics(metrics_ctx)
+            #[cfg(feature = "native")]
+            { command::update::handle(cmd, out, &app_settings).emit_metrics(metrics_ctx) }
+            #[cfg(not(feature = "native"))]
+            { let _ = cmd; anyhow::bail!("The update command requires native features") }
         }
         Subcommands::Help => {
             command::help::print_grouped(out)?;
@@ -257,49 +262,64 @@ async fn match_subcommand(
                 Some(alias_args::Subcommands::List) | None => {
                     command::alias::list(&*ctx.repo.get()?, out).emit_metrics(metrics_ctx)
                 }
+                #[cfg(feature = "native")]
                 Some(alias_args::Subcommands::Add {
                     name,
                     value,
                     global,
                 }) => command::alias::add(&mut ctx, out, &name, &value, global.into())
                     .emit_metrics(metrics_ctx),
+                #[cfg(feature = "native")]
                 Some(alias_args::Subcommands::Remove { name, global }) => {
                     command::alias::remove(&mut ctx, out, &name, global.into())
                         .emit_metrics(metrics_ctx)
                 }
+                #[cfg(not(feature = "native"))]
+                Some(_) => {
+                    anyhow::bail!("Alias add/remove requires native features")
+                }
             }
         }
         Subcommands::Config(args::config::Platform { cmd }) => {
-            // Handle subcommands that don't require a repo context
-            match &cmd {
-                Some(args::config::Subcommands::Metrics { status }) => {
-                    command::config::metrics_config(out, *status)
-                        .await
-                        .emit_metrics(metrics_ctx)
-                }
-                Some(args::config::Subcommands::Forge { cmd: forge_cmd }) => {
-                    command::config::forge_config(out, forge_cmd.clone())
-                        .await
-                        .emit_metrics(metrics_ctx)
-                }
-                _ => {
-                    // Other subcommands need a repo context
-                    cfg_if! {
-                        if #[cfg(feature = "legacy")] {
-                            let mut ctx = setup::init_ctx(&args, InitCtxOptions { background_sync: BackgroundSync::Disabled, ..Default::default() }, out)?;
-                            command::config::exec(&mut ctx, out, cmd)
-                                .await
-                                .emit_metrics(metrics_ctx)
-                        } else {
-                            let mut ctx = but_ctx::Context::discover(&args.current_dir)?;
-                            command::config::exec(&mut ctx, out, cmd)
-                                .await
-                                .emit_metrics(metrics_ctx)
+            #[cfg(feature = "native")]
+            {
+                // Handle subcommands that don't require a repo context
+                match &cmd {
+                    Some(args::config::Subcommands::Metrics { status }) => {
+                        command::config::metrics_config(out, *status)
+                            .await
+                            .emit_metrics(metrics_ctx)
+                    }
+                    Some(args::config::Subcommands::Forge { cmd: forge_cmd }) => {
+                        command::config::forge_config(out, forge_cmd.clone())
+                            .await
+                            .emit_metrics(metrics_ctx)
+                    }
+                    _ => {
+                        // Other subcommands need a repo context
+                        cfg_if! {
+                            if #[cfg(feature = "legacy")] {
+                                let mut ctx = setup::init_ctx(&args, InitCtxOptions { background_sync: BackgroundSync::Disabled, ..Default::default() }, out)?;
+                                command::config::exec(&mut ctx, out, cmd)
+                                    .await
+                                    .emit_metrics(metrics_ctx)
+                            } else {
+                                let mut ctx = but_ctx::Context::discover(&args.current_dir)?;
+                                command::config::exec(&mut ctx, out, cmd)
+                                    .await
+                                    .emit_metrics(metrics_ctx)
+                            }
                         }
                     }
                 }
             }
+            #[cfg(not(feature = "native"))]
+            {
+                let _ = cmd;
+                anyhow::bail!("The config command requires native features")
+            }
         }
+        #[cfg(feature = "native")]
         Subcommands::Skill(args::skill::Platform { cmd }) => {
             // Skill commands use repository context when available, but can run
             // without one. Subcommand handlers produce tailored guidance when a

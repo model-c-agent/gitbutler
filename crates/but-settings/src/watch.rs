@@ -1,11 +1,14 @@
 use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
-    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, mpsc},
-    time::Duration,
+    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
+#[cfg(not(target_os = "wasi"))]
+use std::{sync::mpsc, time::Duration};
+
 use anyhow::Result;
+#[cfg(not(target_os = "wasi"))]
 use notify::{
     Config, Event, RecommendedWatcher, RecursiveMode, Watcher,
     event::{ModifyKind, RemoveKind},
@@ -115,6 +118,7 @@ impl AppSettingsWithDiskSync {
     }
 
     /// Start watching [`Self::config_path()`] for changes and inform
+    #[cfg(not(target_os = "wasi"))]
     pub fn watch_in_background(
         &mut self,
         send_event: impl Fn(AppSettings) -> Result<()> + Send + Sync + 'static,

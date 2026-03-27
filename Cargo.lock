@@ -780,6 +780,7 @@ dependencies = [
  "but-graph",
  "but-hunk-assignment",
  "but-installer",
+ "but-link",
  "but-llm",
  "but-path",
  "but-rebase",
@@ -801,6 +802,7 @@ dependencies = [
  "command-group",
  "crossterm",
  "dirs 6.0.0",
+ "git2",
  "gitbutler-branch",
  "gitbutler-branch-actions",
  "gitbutler-commit",
@@ -1350,6 +1352,24 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "but-link"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "but-ctx",
+ "but-db",
+ "clap",
+ "crossterm",
+ "gix",
+ "ratatui",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "time",
 ]
 
 [[package]]
@@ -4134,6 +4154,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "but-core",
+ "git2",
  "gix",
  "serde",
  "thiserror 2.0.18",
@@ -8300,6 +8321,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "psm"
+version = "0.1.30"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3852766467df634d74f0b2d7819bf8dc483a0eb2e3b0f50f756f9cfe8b0d18d8"
+dependencies = [
+ "ar_archive_writer",
+ "cc",
+]
+
+[[package]]
 name = "ptr_meta"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9083,8 +9114,18 @@ dependencies = [
  "bitflags 2.11.0",
  "errno",
  "libc",
- "linux-raw-sys",
+ "linux-raw-sys 0.12.1",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "rustix-linux-procfs"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2fc84bf7e9aa16c4f2c758f27412dc9841341e16aa682d9c7ac308fe3ee12056"
+dependencies = [
+ "once_cell",
+ "rustix 1.1.4",
 ]
 
 [[package]]
@@ -10654,9 +10695,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.1",
+ "getrandom 0.3.4",
  "once_cell",
- "rustix",
+ "rustix 1.1.4",
  "windows-sys 0.61.2",
 ]
 
