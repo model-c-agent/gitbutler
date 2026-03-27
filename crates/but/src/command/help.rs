@@ -37,6 +37,10 @@ pub fn print_grouped(out: &mut dyn std::fmt::Write) -> std::fmt::Result {
             "Operation History".yellow(),
             vec!["oplog", "undo", "restore"],
         ),
+        (
+            "Plugins".yellow(),
+            vec!["plugin"],
+        ),
     ];
 
     writeln!(out, "{}", "The GitButler CLI change control system".red())?;

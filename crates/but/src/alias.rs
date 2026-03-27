@@ -154,6 +154,76 @@ fn read_git_config_alias(repo: &gix::Repository, alias_name: &str) -> Option<Str
     config.string(&config_key).map(|v| v.to_string())
 }
 
+/// Search PATH for executables matching `but-<name>`.
+///
+/// Returns the full path to the executable if found, or `None`.
+#[cfg(not(feature = "wasi"))]
+pub fn find_external_subcommand(name: &str) -> Option<std::path::PathBuf> {
+    let target = format!("but-{name}");
+    std::env::var_os("PATH").and_then(|paths| {
+        std::env::split_paths(&paths).find_map(|dir| {
+            let candidate = dir.join(&target);
+            if candidate.is_file() && is_executable(&candidate) {
+                Some(candidate)
+            } else {
+                None
+            }
+        })
+    })
+}
+
+/// List all external subcommands found on PATH.
+///
+/// Returns a sorted, deduplicated list of (name, path) tuples where `name`
+/// is the subcommand name (without the `but-` prefix).
+#[cfg(not(feature = "wasi"))]
+pub fn list_external_subcommands() -> Vec<(String, std::path::PathBuf)> {
+    let mut seen = std::collections::HashSet::new();
+    let mut result = Vec::new();
+
+    if let Some(paths) = std::env::var_os("PATH") {
+        for dir in std::env::split_paths(&paths) {
+            if let Ok(entries) = std::fs::read_dir(&dir) {
+                for entry in entries.flatten() {
+                    let file_name = entry.file_name();
+                    if let Some(name) = file_name.to_str()
+                        && let Some(subcommand) = name.strip_prefix("but-")
+                    {
+                        let path = entry.path();
+                        if path.is_file()
+                            && is_executable(&path)
+                            && !is_known_subcommand(subcommand)
+                            && seen.insert(subcommand.to_string())
+                        {
+                            result.push((subcommand.to_string(), path));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    result.sort_by(|a, b| a.0.cmp(&b.0));
+    result
+}
+
+/// Checks whether a path is executable.
+#[cfg(not(feature = "wasi"))]
+fn is_executable(path: &std::path::Path) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        path.metadata()
+            .map(|m| m.permissions().mode() & 0o111 != 0)
+            .unwrap_or(false)
+    }
+    #[cfg(not(unix))]
+    {
+        // On Windows, just check if the file exists -- executable bit doesn't apply
+        path.is_file()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -230,5 +300,21 @@ mod tests {
         assert_eq!(result[0], OsString::from("but"));
         assert_eq!(result[1], OsString::from("status"));
         assert_eq!(result[result.len() - 1], OsString::from("--verbose"));
+    }
+
+    #[test]
+    #[cfg(not(feature = "wasi"))]
+    fn find_external_subcommand_nonexistent() {
+        assert!(find_external_subcommand("nonexistent-plugin-xyz").is_none());
+    }
+
+    #[test]
+    #[cfg(not(feature = "wasi"))]
+    fn list_external_subcommands_returns_sorted() {
+        let plugins = list_external_subcommands();
+        let names: Vec<&str> = plugins.iter().map(|(n, _)| n.as_str()).collect();
+        let mut sorted = names.clone();
+        sorted.sort();
+        assert_eq!(names, sorted);
     }
 }

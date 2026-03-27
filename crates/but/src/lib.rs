@@ -348,6 +348,7 @@ async fn match_subcommand(
                 #[cfg(feature = "legacy")]
                 Some(branch::Subcommands::List {
                     filter,
+                    pattern,
                     local,
                     remote,
                     all,
@@ -365,8 +366,8 @@ async fn match_subcommand(
                         out,
                     )?;
                     command::legacy::branch::list_branches(
-                        &mut ctx, out, filter, local, remote, all, no_ahead, review, no_check,
-                        empty,
+                        &mut ctx, out, filter, pattern, local, remote, all, no_ahead, review,
+                        no_check, empty,
                     )
                 }
                 #[cfg(feature = "legacy")]
@@ -405,7 +406,11 @@ async fn match_subcommand(
                     command::legacy::branch::new(&mut ctx, out, branch_name, anchor)
                 }
                 #[cfg(feature = "legacy")]
-                Some(branch::Subcommands::Delete { branch_name, force }) => {
+                Some(branch::Subcommands::Delete {
+                    branch_name,
+                    pattern,
+                    force,
+                }) => {
                     let mut ctx = setup::init_ctx(
                         &args,
                         InitCtxOptions {
@@ -414,7 +419,9 @@ async fn match_subcommand(
                         },
                         out,
                     )?;
-                    command::legacy::branch::delete(&mut ctx, out, branch_name, force)
+                    command::legacy::branch::delete(
+                        &mut ctx, out, branch_name, pattern, force,
+                    )
                 }
                 #[cfg(not(feature = "legacy"))]
                 Some(branch::Subcommands::Apply { branch_name }) => {

@@ -114,6 +114,9 @@ pub enum Subcommands {
         /// Disable hints about available commands at the end of output.
         #[clap(long = "no-hint", default_value_t = false)]
         no_hint: bool,
+        /// Show a compact one-line-per-branch summary with file and commit counts.
+        #[clap(short = 's', long = "summary", default_value_t = false)]
+        summary: bool,
     },
 
     /// Combines two entities together to perform an operation like amend, squash, stage, or move.
@@ -189,6 +192,9 @@ pub enum Subcommands {
     Diff {
         /// The CLI ID of the entity to show the diff for
         target: Option<String>,
+        /// Only show the names of changed files, not the full diff
+        #[clap(long = "name-only", conflicts_with_all = ["tui", "no_tui"])]
+        name_only: bool,
         /// Open an interactive TUI diff viewer
         #[clap(long = "tui", conflicts_with = "no_tui")]
         tui: bool,
@@ -708,6 +714,32 @@ pub enum Subcommands {
     #[clap(verbatim_doc_comment)]
     Alias(alias::Platform),
 
+    /// Manage external plugins (but-* executables on PATH).
+    ///
+    /// Lists available external subcommands that extend `but` functionality.
+    /// These are executables named `but-<name>` found on your PATH.
+    ///
+    /// Running `but plugin` without a subcommand lists available plugins
+    /// (same as `but plugin list`).
+    ///
+    /// ## Examples
+    ///
+    /// List available plugins:
+    ///
+    /// ```text
+    /// but plugin list
+    /// ```
+    ///
+    /// Show PATH directories searched for plugins:
+    ///
+    /// ```text
+    /// but plugin path
+    /// ```
+    ///
+    #[cfg(not(feature = "wasi"))]
+    #[clap(verbatim_doc_comment)]
+    Plugin(plugin::Platform),
+
     /// View and manage GitButler configuration.
     ///
     /// Without a subcommand, displays an overview of important settings including
@@ -938,19 +970,19 @@ pub enum Subcommands {
         target_branch: Option<String>,
     },
 
-    /// Unapply a branch from the workspace.
+    /// Unapply one or more branches from the workspace.
     ///
-    /// If you want to unapply an applied branch from your workspace
-    /// (effectively stashing it) so you can work on other branches,
-    /// you can run `but unapply <branch-name>`.
+    /// If you want to unapply applied branches from your workspace
+    /// (effectively stashing them) so you can work on other branches,
+    /// you can run `but unapply <branch-name>...`.
     ///
-    /// This will remove the changes in that branch from your working
-    /// directory and you can re-apply it later when needed. You will then
-    /// see the branch as unapplied in `but branch list`.
+    /// This will remove the changes in those branches from your working
+    /// directory and you can re-apply them later when needed. You will then
+    /// see the branches as unapplied in `but branch list`.
     ///
-    /// The identifier can be:
-    /// - A CLI ID pointing to a stack or branch (e.g., "bu" from `but status`)
-    /// - A branch name
+    /// The identifiers can be:
+    /// - CLI IDs pointing to stacks or branches (e.g., "bu" from `but status`)
+    /// - Branch names
     ///
     /// If a branch name (or an identifier pointing to a branch) is provided,
     /// the entire stack containing that branch will be unapplied.
@@ -963,6 +995,12 @@ pub enum Subcommands {
     /// but unapply my-feature-branch
     /// ```
     ///
+    /// Unapply multiple branches:
+    ///
+    /// ```text
+    /// but unapply branch1 branch2
+    /// ```
+    ///
     /// Unapply by CLI ID:
     ///
     /// ```text
@@ -972,20 +1010,21 @@ pub enum Subcommands {
     #[cfg(feature = "legacy")]
     #[clap(verbatim_doc_comment)]
     Unapply {
-        /// CLI ID or name of the branch/stack to unapply
-        identifier: String,
+        /// CLI IDs or names of the branches/stacks to unapply
+        #[clap(required = true)]
+        identifiers: Vec<String>,
         /// Force unapply without confirmation
         #[clap(long, short = 'f')]
         force: bool,
     },
 
-    /// Apply a branch to the workspace.
+    /// Apply one or more branches to the workspace.
     ///
-    /// If you want to apply an unapplied branch to your workspace so you
-    /// can work on it, you can run `but apply <branch-name>`.
+    /// If you want to apply unapplied branches to your workspace so you
+    /// can work on them, you can run `but apply <branch-name>...`.
     ///
-    /// This will apply the changes in that branch into your working directory
-    /// as a parallel applied branch.
+    /// This will apply the changes in those branches into your working directory
+    /// as parallel applied branches.
     ///
     /// ## Examples
     ///
@@ -995,11 +1034,18 @@ pub enum Subcommands {
     /// but apply my-feature-branch
     /// ```
     ///
+    /// Apply multiple branches:
+    ///
+    /// ```text
+    /// but apply branch1 branch2
+    /// ```
+    ///
     #[cfg(feature = "legacy")]
     #[clap(verbatim_doc_comment)]
     Apply {
-        /// Name of the branch to apply
-        branch_name: String,
+        /// Names of the branches to apply
+        #[clap(required = true)]
+        branch_names: Vec<String>,
     },
 
     /// Stages a file or hunk to a specific branch.
@@ -1021,6 +1067,9 @@ pub enum Subcommands {
         /// Branch to stage to (for interactive mode)
         #[clap(long = "branch", short = 'b')]
         branch: Option<String>,
+        /// Override hunk lock assignment (force stage even if hunk is locked to another branch)
+        #[clap(long = "override-lock")]
+        override_lock: bool,
     },
 
     /// Unstages a file or hunk from a branch.
@@ -1081,6 +1130,31 @@ pub enum Subcommands {
     #[clap(hide = true)]
     Onboarding,
 
+    /// Manage background sync behavior.
+    ///
+    /// Pause, resume, or check the status of GitButler's background sync.
+    /// When paused, GitButler will not automatically fetch from remotes,
+    /// refresh pull request data, or check CI status.
+    ///
+    /// Pause auto-expires after 1 hour by default to prevent forgotten pauses.
+    ///
+    /// ## Examples
+    ///
+    /// Pause background sync for the default duration (1 hour):
+    ///
+    /// ```text
+    /// but sync pause
+    /// ```
+    ///
+    /// Pause for a specific duration:
+    ///
+    /// ```text
+    /// but sync pause --duration 30m
+    /// ```
+    ///
+    #[clap(verbatim_doc_comment)]
+    Sync(sync::Platform),
+
     /// AI: Claude Code hook for workspace awareness and skill activation.
     ///
     /// Outputs workspace status as JSON and a skill-loading nudge.
@@ -1102,7 +1176,10 @@ pub enum Subcommands {
 pub mod alias;
 pub mod commit;
 pub mod config;
+#[cfg(not(feature = "wasi"))]
+pub mod plugin;
 pub mod skill;
+pub mod sync;
 pub mod update;
 
 pub mod actions {
