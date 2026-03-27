@@ -15,10 +15,15 @@ pub fn list(
     ahead: bool,
     review: bool,
     filter: Option<String>,
+    pattern: Option<String>,
     out: &mut OutputChannel,
     check_merge: bool,
     show_empty: bool,
 ) -> Result<(), anyhow::Error> {
+    let regex_filter = pattern
+        .map(|p| regex::Regex::new(&p))
+        .transpose()
+        .map_err(|e| anyhow::anyhow!("Invalid regex pattern: {e}"))?;
     let listing_filter = if local {
         Some(BranchListingFilter {
             local: Some(true),
@@ -90,6 +95,21 @@ pub fn list(
         }
     }
 
+    // Apply regex pattern filter to applied stacks
+    if let Some(ref regex) = regex_filter {
+        applied_stacks.retain(|stack| {
+            stack
+                .heads
+                .iter()
+                .any(|head| regex.is_match(&head.name.to_string()))
+        });
+        for stack in &mut applied_stacks {
+            stack
+                .heads
+                .retain(|head| regex.is_match(&head.name.to_string()));
+        }
+    }
+
     let mut branches = but_api::legacy::virtual_branches::list_branches(ctx, listing_filter)?;
 
     // Filter out branches that are part of applied stacks
@@ -119,6 +139,11 @@ pub fn list(
                 .to_lowercase()
                 .contains(&filter_lower)
         });
+    }
+
+    // Apply regex pattern filter
+    if let Some(ref regex) = regex_filter {
+        branches.retain(|branch| regex.is_match(&branch.name.to_string()));
     }
 
     // Filter out branches with no commits ahead of target unless --empty is requested.
