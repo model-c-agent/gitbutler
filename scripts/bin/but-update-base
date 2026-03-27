@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Update a remote base branch to point at a specific commit from the workspace.
+#
+# Usage: but-update-base <branch-name> [commit-pattern]
+#
+# When stacked PRs are managed as virtual branches, the "base" branch
+# (e.g. feat/wasi) isn't a virtual branch itself — it's just a remote ref
+# that needs updating after amends/rebases.
+#
+# If commit-pattern is given, searches for a commit whose message contains
+# that pattern and uses its SHA.  Otherwise, prompts with available commits.
+#
+# Example:
+#   but-update-base feat/wasi "wasi feature flags"
+#   → pushes the matching commit to model-c/feat/wasi
+
+if [[ $# -lt 1 ]] || [[ "${1:-}" == "--help" ]]; then
+    echo "Usage: but-update-base <branch-name> [commit-pattern]"
+    echo
+    echo "  Update a remote base branch to a commit from the workspace."
+    echo "  Uses the first remote that has the branch, or 'model-c' by default."
+    echo
+    echo "  Examples:"
+    echo "    but-update-base feat/wasi 'wasi feature flags'"
+    echo "    but-update-base feat/my-branch 'initial commit'"
+    exit 0
+fi
+
+BRANCH="$1"
+PATTERN="${2:-}"
+
+# Find the commit SHA
+if [[ -z "$PATTERN" ]]; then
+    echo "error: commit-pattern is required" >&2
+    echo "Usage: but-update-base <branch-name> <commit-pattern>" >&2
+    exit 1
+fi
+
+SHA=$(but status --json 2>/dev/null | python3 -c "
+import json, sys
+pattern = sys.argv[1].lower()
+data = json.load(sys.stdin)
+for stack in data.get('stacks', []):
+    for branch in stack.get('branches', []):
+        for commit in branch.get('commits', []):
+            if pattern in commit['message'].lower():
+                print(commit['commitId'])
+                sys.exit(0)
+sys.exit(1)
+" "$PATTERN" 2>/dev/null) || {
+    echo "error: no commit matching '$PATTERN' found" >&2
+    exit 1
+}
+
+# Find the remote that has this branch
+REMOTE=""
+for r in model-c origin upstream; do
+    if git rev-parse --verify "refs/remotes/$r/$BRANCH" &>/dev/null; then
+        REMOTE="$r"
+        break
+    fi
+done
+
+if [[ -z "$REMOTE" ]]; then
+    REMOTE="model-c"
+    echo "note: branch '$BRANCH' not found on any remote, using '$REMOTE'" >&2
+fi
+
+echo "Pushing ${SHA:0:12} → $REMOTE/$BRANCH"
+git push "$REMOTE" "$SHA:refs/heads/$BRANCH" --force-with-lease

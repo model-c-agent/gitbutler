@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Create all branches for a PR from its agents.json
+# Usage: but-setup-branches <agents.json> [--dry-run] [--clean]
+
+if [[ "${1:-}" == "--help" || -z "${1:-}" ]]; then
+  echo "Usage: but-setup-branches <agents.json> [--dry-run] [--clean]"
+  echo
+  echo "  Reads agents.json and creates all branches with proper stacking."
+  echo "  --dry-run  Show what would be created without doing it."
+  echo "  --clean    Delete orphaned git refs matching the PR prefix before creating."
+  return 0 2>/dev/null || exit 0
+fi
+
+json_file="$1"
+shift
+
+dry_run=false
+clean=false
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run) dry_run=true ;;
+    --clean) clean=true ;;
+  esac
+done
+
+if [[ ! -f "$json_file" ]]; then
+  echo "Error: $json_file not found"
+  exit 1
+fi
+
+main_branch=$(jq -r '.mainBranch' "$json_file")
+pr_num=$(jq -r '.pr' "$json_file")
+
+# Build topologically ordered list: anchors must be created before dependents.
+# We do a simple iterative resolution: each pass emits agents whose anchor
+# has already been emitted (or is the mainBranch).
+agents_ordered=$(jq -r --arg main "$main_branch" '
+  def topo:
+    .emitted as $done |
+    [.remaining[] | select(.anchor as $a | $done | any(. == $a))] as $ready |
+    if ($ready | length) == 0 then
+      .result + [.remaining[] | "\(.branch)\t\(.anchor)"]
+    else
+      {
+        emitted: ($done + [$ready[] | .branch]),
+        remaining: [.remaining[] | . as $r | select($ready | all(.branch != $r.branch))],
+        result: (.result + [$ready[] | "\(.branch)\t\(.anchor)"])
+      } | topo
+    end;
+  .agents | to_entries | [.[] | .value] |
+  { emitted: [$main], remaining: ., result: [] } | topo | .[]
+' "$json_file")
+
+echo "PR #${pr_num}: Setting up branches"
+echo "Main branch: $main_branch"
+echo "Agents: $(jq '.agents | length' "$json_file")"
+echo
+
+# Clean orphaned git refs if requested
+if $clean; then
+  prefix="pr${pr_num}/"
+  orphans=$(git branch 2>/dev/null | grep "$prefix" | sed 's/^[ *]*//' || true)
+  if [[ -n "$orphans" ]]; then
+    echo "=== Cleaning orphaned refs ==="
+    while IFS= read -r ref; do
+      if $dry_run; then
+        echo "  would delete: $ref"
+      else
+        echo "  deleting: $ref"
+        git branch -D "$ref" 2>/dev/null || true
+      fi
+    done <<< "$orphans"
+    echo
+  fi
+  # Also clean main branch ref if orphaned
+  if git branch 2>/dev/null | grep -q "^ *${main_branch}$"; then
+    if $dry_run; then
+      echo "  would delete: $main_branch"
+    else
+      echo "  deleting: $main_branch"
+      git branch -D "$main_branch" 2>/dev/null || true
+    fi
+    echo
+  fi
+fi
+
+# Create main branch
+echo "=== Creating branches ==="
+if $dry_run; then
+  echo "  would create: $main_branch"
+else
+  echo "  creating: $main_branch"
+  but branch new "$main_branch" 2>&1 | grep -v 'background sync' || true
+fi
+
+# Create agent branches in dependency order
+while IFS=$'\t' read -r branch anchor; do
+  if $dry_run; then
+    echo "  would create: $branch (stacked on $anchor)"
+  else
+    echo "  creating: $branch (stacked on $anchor)"
+    but branch new "$branch" -a "$anchor" 2>&1 | grep -v 'background sync' || true
+  fi
+done <<< "$agents_ordered"
+
+echo
+echo "Done. Created $(($(jq '.agents | length' "$json_file") + 1)) branches."

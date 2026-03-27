@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Auto-resolve all merge conflicts in Cargo.lock by taking the "new base" side.
+#
+# Usage: but-resolve-lockfile [path]
+#   path  Path to Cargo.lock (default: ./Cargo.lock)
+#
+# This is useful after rebasing when Cargo.lock has dozens or hundreds of
+# conflicts that are impractical to resolve manually.  The "new base" side
+# is always correct because `cargo update` will reconcile versions afterward.
+
+LOCKFILE="${1:-Cargo.lock}"
+
+if [[ ! -f "$LOCKFILE" ]]; then
+    echo "error: $LOCKFILE not found" >&2
+    exit 1
+fi
+
+CONFLICTS=$(grep -c '^<<<<<<<' "$LOCKFILE" 2>/dev/null || true)
+if [[ "$CONFLICTS" -eq 0 ]]; then
+    echo "No conflicts found in $LOCKFILE"
+    exit 0
+fi
+
+python3 -c "
+import re, sys
+with open(sys.argv[1], 'r') as f:
+    content = f.read()
+pattern = r'<<<<<<< [^\n]*\n(.*?)(?:\|\|\|\|\|\|\| [^\n]*\n.*?)?=======\n.*?>>>>>>> [^\n]*\n'
+resolved = re.sub(pattern, r'\1', content, flags=re.DOTALL)
+remaining = resolved.count('<<<<<<<')
+with open(sys.argv[1], 'w') as f:
+    f.write(resolved)
+print(f'Resolved {int(sys.argv[2]) - remaining} of {sys.argv[2]} conflicts')
+if remaining > 0:
+    print(f'Warning: {remaining} conflicts remain', file=sys.stderr)
+    sys.exit(1)
+" "$LOCKFILE" "$CONFLICTS"

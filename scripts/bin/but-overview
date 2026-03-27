@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Show a concise overview of the workspace: unassigned changes + branch commits.
+# Usage: but-overview [--json]
+
+if [[ "${1:-}" == "--help" ]]; then
+  echo "Usage: but-overview [--json]"
+  echo
+  echo "  Show a concise workspace overview:"
+  echo "    - Unassigned changes (cliId, path)"
+  echo "    - Branch commits (cliId, message, conflict marker)"
+  echo
+  echo "  --json  Output raw JSON from but status"
+  exit 0
+fi
+
+status_json=$(but status --json 2>/dev/null)
+
+if [[ "${1:-}" == "--json" ]]; then
+  echo "$status_json"
+  exit 0
+fi
+
+echo "=== Unassigned ==="
+echo "$status_json" | jq -r '
+  .unassignedChanges[] |
+  "  \(.cliId)\t\(.filePath)"
+' 2>/dev/null | column -t -s$'\t' || echo "  (none)"
+
+echo
+echo "=== Branches ==="
+echo "$status_json" | jq -r '
+  .stacks[] | .branches[] |
+  "Branch: \(.name) [\(.cliId)] (\(.branchStatus))",
+  (.commits[] |
+    "  \(.cliId): \(.message | split("\n")[0] | .[0:70])\(if .conflicted then " [CONFLICTED]" else "" end)"
+  ),
+  ""
+' 2>/dev/null
