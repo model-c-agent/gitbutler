@@ -1,8 +1,8 @@
 #[cfg(not(target_os = "wasi"))]
+pub use but_core::sync::LockFile;
+#[cfg(not(target_os = "wasi"))]
 use but_core::sync::LockScope::AllOperations;
 pub use but_core::sync::{RepoExclusive, RepoExclusiveGuard, RepoShared, RepoSharedGuard};
-#[cfg(not(target_os = "wasi"))]
-pub use but_core::sync::LockFile;
 
 use crate::Context;
 

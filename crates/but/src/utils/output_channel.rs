@@ -4,12 +4,9 @@ use but_secret::Sensitive;
 #[cfg(feature = "tui")]
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
-use crate::{
-    args::OutputFormat,
-    utils::json_pretty_to_stdout,
-};
 #[cfg(feature = "tui")]
 use crate::utils::pager::{self, Pager};
+use crate::{args::OutputFormat, utils::json_pretty_to_stdout};
 
 /// Default value for a confirmation prompt.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -269,7 +266,7 @@ impl std::fmt::Write for OutputChannel {
                             } else {
                                 Err(std::fmt::Error)
                             }
-                        })
+                        });
                     }
                     None => {}
                 }

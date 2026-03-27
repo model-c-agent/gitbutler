@@ -69,46 +69,56 @@ Work stays on the agent's branch. The next agent stacks on top if it depends on 
 
 ## Sub-PR Breakdown (16 sub-PRs)
 
-| ID | Folder | Branch | Description | Size |
-|----|--------|--------|-------------|------|
-| s01 | `s01/feat/wasi-feature-flags/` | `pr1/s01/feat/wasi-feature-flags` | Cargo `wasi` feature + build config | S |
-| s02 | `s01.s02/feat/wasi-serde-objectid/` | `pr1/s01.s02/feat/wasi-serde-objectid` | but-serde: ObjectId abstraction (gate git2::Oid) | M |
-| s03 | `s01.s03/feat/wasi-oxidize-noop/` | `pr1/s01.s03/feat/wasi-oxidize-noop` | but-oxidize: no-op under wasi | S |
-| s04 | `s01.s04/feat/wasi-gate-tui/` | `pr1/s01.s04/feat/wasi-gate-tui` | Gate ratatui/crossterm/pager | M |
-| s05 | `s01.s05/feat/wasi-gate-process/` | `pr1/s01.s05/feat/wasi-gate-process` | Gate std::process::Command | M |
-| s06 | `s01.s06/feat/wasi-gate-networking/` | `pr1/s01.s06/feat/wasi-gate-networking` | Gate reqwest/HTTP deps | M |
-| s07 | `s01.s07/feat/wasi-gate-platform/` | `pr1/s01.s07/feat/wasi-gate-platform` | Gate keyring/dirs/notify | M |
-| s08 | `s01.s08/feat/wasi-gate-sqlite/` | `pr1/s01.s08/feat/wasi-gate-sqlite` | Gate or adapt rusqlite | M |
-| s09 | `s02.s09/feat/wasi-gate-ctx/` | `pr1/s02.s09/feat/wasi-gate-ctx` | but-ctx: gate git2::Repository field | M |
-| s10 | `s09.s10/feat/wasi-gate-core-checkout/` | `pr1/s09.s10/feat/wasi-gate-core-checkout` | but-core: gate worktree/checkout | S |
-| s11 | `s05.s11/feat/wasi-tokio-singlethread/` | `pr1/s05.s11/feat/wasi-tokio-singlethread` | Single-threaded tokio runtime | M |
-| s12 | `s02-s11.s12/feat/wasi-gix-features/` | `pr1/s02-s11.s12/feat/wasi-gix-features` | gix WASI feature audit + config | M |
-| s13 | `s12.s13/feat/wasi-first-compile/` | `pr1/s12.s13/feat/wasi-first-compile` | Fix remaining compile errors | M |
-| s14 | `s13.s14/feat/wasi-runtime-host/` | `pr1/s13.s14/feat/wasi-runtime-host` | but-wasi-host: wasmtime host binary | M |
-| s15 | `s14.s15/test/wasi-testing/` | `pr1/s14.s15/test/wasi-testing` | WASI test harness + smoke tests | M |
-| s16 | `s15.s16/feat/wasi-ci-pipeline/` | `pr1/s15.s16/feat/wasi-ci-pipeline` | CI workflow for WASI builds | S |
+| ID | Folder | Branch | Description | Size | Status |
+|----|--------|--------|-------------|------|--------|
+| s01 | `s01/feat/wasi-feature-flags/` | `feat/wasi` | Cargo `wasi` feature + build config | S | ✓ Done |
+| s02 | `s01.s02/feat/wasi-serde-objectid/` | `pr1/s01.s02/feat/wasi-serde-objectid` | but-serde: ObjectId abstraction (gate git2::Oid) | M | ✓ Done |
+| s03 | `s01.s03/feat/wasi-oxidize-noop/` | `pr1/s01.s03/feat/wasi-oxidize-noop` | but-oxidize: no-op under wasi | S | ✓ Done |
+| s04 | `s01.s04/feat/wasi-gate-tui/` | `pr1/s01.s04/feat/wasi-gate-tui` | Gate ratatui/crossterm/pager | M | ✓ Done |
+| s05 | `s01.s05/feat/wasi-gate-process/` | `pr1/s01.s05/feat/wasi-gate-process` | Gate std::process::Command | M | ✓ Done |
+| s06 | `s01.s06/feat/wasi-gate-networking/` | — | Gate reqwest/HTTP deps | M | ⊂ s13 |
+| s07 | `s01.s07/feat/wasi-gate-platform/` | — | Gate keyring/dirs/notify | M | ⊂ s13 |
+| s08 | `s01.s08/feat/wasi-gate-sqlite/` | — | Gate or adapt rusqlite | M | ⊂ s13 |
+| s09 | `s02.s09/feat/wasi-gate-ctx/` | `pr1/s02.s09/feat/wasi-gate-ctx` | but-ctx: gate git2::Repository field | M | ✓ Done |
+| s10 | `s09.s10/feat/wasi-gate-core-checkout/` | — | but-core: gate worktree/checkout | S | ⊂ s13 |
+| s11 | `s05.s11/feat/wasi-tokio-singlethread/` | — | Single-threaded tokio runtime | M | ⊂ s13 |
+| s12 | `s02-s11.s12/feat/wasi-gix-features/` | — | gix WASI feature audit + config | M | ⊂ s13 |
+| s13 | `s12.s13/feat/wasi-first-compile/` | `pr1/s12.s13/feat/wasi-first-compile` | Fix remaining compile errors | M | ✓ Done |
+| s14 | `s13.s14/feat/wasi-runtime-host/` | `pr1/s13.s14/feat/wasi-runtime-host` | but-wasi-host: wasmtime host binary | M | Planned |
+| s15 | `s14.s15/test/wasi-testing/` | `pr1/s14.s15/test/wasi-testing` | WASI test harness + smoke tests | M | Planned |
+| s16 | `s15.s16/feat/wasi-ci-pipeline/` | `pr1/s15.s16/feat/wasi-ci-pipeline` | CI workflow for WASI builds | S | Planned |
 
 ## Dependency Graph
 
 ```
 s01 (feature flags) ✓
-├── s02 (serde ObjectId) ✓    ─┐
-│   └── s09 (gate ctx)         │
-│       └── s10 (gate checkout) │
-├── s03 (oxidize noop)         │── tier 1: all depend on s01/s02
-├── s04 (gate TUI)             │
-├── s05 (gate process)         │
-│   ├── s06 (gate networking)  │   ← stacks on s05 (extends native feature)
-│   │   └── s07 (gate platform)│   ← stacks on s06 (extends native further)
-│   └── s11 (tokio)            │
-├── s08 (gate sqlite)         ─┘
+├── s02 (serde ObjectId) ✓       ─┐
+│   └── s09 (gate ctx) ✓          │
+│       └── s10 (gate checkout) ⊂s13
+├── s03 (oxidize noop) ✓          │── tier 1: all depend on s01/s02
+├── s04 (gate TUI) ✓              │
+├── s05 (gate process) ✓          │
+│   ├── s06 (gate networking) ⊂s13│   ← absorbed into s13
+│   │   └── s07 (gate platform)⊂s13   ← absorbed into s13
+│   └── s11 (tokio) ⊂s13          │
+├── s08 (gate sqlite) ⊂s13       ─┘
 │
-s12 (gix features)  ── depends on s02 through s11
-└── s13 (first compile)
+s12 (gix features) ⊂s13  ── absorbed into s13
+└── s13 (first compile) ✓
     └── s14 (runtime host)
         └── s15 (testing)
             └── s16 (CI)
 ```
+
+**Legend:** ✓ = completed with own commit, ⊂s13 = work absorbed into s13 mega-commit
+
+### Absorbed Sub-PRs (s06-s08, s10-s12)
+
+During the iterative compile-fix process for s13, the changes originally planned
+for s06 (networking), s07 (platform), s08 (sqlite), s10 (core checkout),
+s11 (tokio singlethread), and s12 (gix features) were implemented directly as
+part of the s13 compilation effort. These sub-PRs do not have separate branches
+or commits — their work lives in the s13 commit.
 
 ### Implementation Order (after batch review)
 

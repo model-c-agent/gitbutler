@@ -3,6 +3,7 @@
 //! These are stateless and global, while discouraging storing secrets
 //! in memory beyond their use.
 
+#[cfg(not(target_os = "wasi"))]
 use std::sync::Mutex;
 
 use anyhow::Result;

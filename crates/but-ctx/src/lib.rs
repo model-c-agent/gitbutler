@@ -962,7 +962,7 @@ impl Context {
             project_data_dir,
             mut repo,
             #[cfg(not(target_os = "wasi"))]
-            git2_repo: _,
+                git2_repo: _,
             db: _,
             cache: _,
             app_cache: _,

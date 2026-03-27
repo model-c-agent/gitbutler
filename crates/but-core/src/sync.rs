@@ -1,9 +1,12 @@
 use std::{
     collections::BTreeMap,
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::Arc,
 };
 
+#[cfg(not(target_os = "wasi"))]
+use std::path::Path;
+#[cfg(not(target_os = "wasi"))]
 use anyhow::{Context as _, bail};
 use parking_lot::{ArcRwLockReadGuard, ArcRwLockWriteGuard, RawRwLock};
 /// The scope of a lock. It can be either on the entire project or on specific operations.

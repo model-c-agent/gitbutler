@@ -1,6 +1,7 @@
 //! A version of `tauri::AppHandle::path()` for use outside `tauri`.
 use std::{env, path::PathBuf};
 
+#[cfg(not(target_os = "wasi"))]
 use anyhow::Context;
 
 /// The directory to store application-wide data in, like logs, **one per channel**.

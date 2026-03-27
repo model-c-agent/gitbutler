@@ -34,8 +34,8 @@ pub mod storage;
 #[cfg(all(feature = "legacy", target_os = "wasi"))]
 pub mod storage {
     //! WASI stub: reads/writes virtual-branches TOML directly without DB synchronization.
-    use std::path::Path;
     use crate::virtual_branches_legacy_types::VirtualBranches;
+    use std::path::Path;
 
     /// Read virtual-branches state from the TOML file (WASI: no DB sync).
     pub fn read_synced_virtual_branches(path: &Path) -> anyhow::Result<VirtualBranches> {
@@ -44,7 +44,10 @@ pub mod storage {
     }
 
     /// Write virtual-branches state to the TOML file (WASI: no DB sync).
-    pub fn write_virtual_branches_and_sync(path: &Path, vb: &VirtualBranches) -> anyhow::Result<()> {
+    pub fn write_virtual_branches_and_sync(
+        path: &Path,
+        vb: &VirtualBranches,
+    ) -> anyhow::Result<()> {
         let content = toml::to_string(vb)?;
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;

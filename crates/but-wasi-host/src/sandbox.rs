@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use wasmtime::{
-    component::{Component, Linker},
     Config, Engine, Store,
+    component::{Component, Linker},
 };
 use wasmtime_wasi::{DirPerms, FilePerms, WasiCtx, WasiCtxBuilder, WasiView};
 
@@ -110,8 +110,9 @@ pub fn run(opts: SandboxOptions, but_args: Vec<String>) -> Result<i32> {
     wasmtime_wasi::add_to_linker_sync(&mut linker).context("failed to add WASI to linker")?;
 
     // ── Instantiate and run ────────────────────────────────────────────
-    let command = wasmtime_wasi::bindings::sync::Command::instantiate(&mut store, &component, &linker)
-        .context("failed to instantiate WASI command component")?;
+    let command =
+        wasmtime_wasi::bindings::sync::Command::instantiate(&mut store, &component, &linker)
+            .context("failed to instantiate WASI command component")?;
 
     let result = command
         .wasi_cli_run()
@@ -143,9 +144,7 @@ fn load_component(engine: &Engine, opts: &SandboxOptions) -> Result<Component> {
     // Try AOT cache first (unless --no-cache)
     if !opts.no_cache && cwasm_path.exists() {
         // Only use cache if the .cwasm is newer than the .wasm
-        let wasm_mtime = std::fs::metadata(wasm_path)
-            .and_then(|m| m.modified())
-            .ok();
+        let wasm_mtime = std::fs::metadata(wasm_path).and_then(|m| m.modified()).ok();
         let cwasm_mtime = std::fs::metadata(&cwasm_path)
             .and_then(|m| m.modified())
             .ok();
@@ -164,8 +163,8 @@ fn load_component(engine: &Engine, opts: &SandboxOptions) -> Result<Component> {
 
     // Load from .wasm source
     tracing::info!("loading WASM component from {}", wasm_path.display());
-    let wasm_bytes =
-        std::fs::read(wasm_path).with_context(|| format!("failed to read {}", wasm_path.display()))?;
+    let wasm_bytes = std::fs::read(wasm_path)
+        .with_context(|| format!("failed to read {}", wasm_path.display()))?;
 
     // Pre-compile and cache (unless --no-cache)
     if !opts.no_cache {
@@ -176,10 +175,7 @@ fn load_component(engine: &Engine, opts: &SandboxOptions) -> Result<Component> {
         match engine.precompile_component(&wasm_bytes) {
             Ok(serialized) => {
                 if let Err(err) = std::fs::write(&cwasm_path, &serialized) {
-                    tracing::warn!(
-                        "failed to write AOT cache {}: {err}",
-                        cwasm_path.display()
-                    );
+                    tracing::warn!("failed to write AOT cache {}: {err}", cwasm_path.display());
                 } else {
                     tracing::info!("wrote AOT cache to {}", cwasm_path.display());
                 }
