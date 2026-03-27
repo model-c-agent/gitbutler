@@ -35,6 +35,34 @@ pub(crate) fn assign_uncommitted_to_branch(
     Ok(())
 }
 
+pub(crate) fn assign_uncommitted_to_branch_with_override(
+    ctx: &mut Context,
+    hunk_assignments: NonEmpty<&HunkAssignment>,
+    description: String,
+    branch_name: &str,
+    out: &mut OutputChannel,
+) -> anyhow::Result<()> {
+    let assignments = hunk_assignments.into_iter().map(|hunk_assignment| {
+        (
+            hunk_assignment.hunk_header,
+            hunk_assignment.path_bytes.to_owned(),
+        )
+    });
+    let reqs = to_assignment_request(ctx, assignments, Some(branch_name))?;
+    do_assignments_override_locks(ctx, reqs, out)?;
+    if let Some(out) = out.for_human() {
+        writeln!(
+            out,
+            "Staged {} → {} (lock overridden).",
+            description,
+            format!("[{branch_name}]").green()
+        )?;
+    } else if let Some(out) = out.for_json() {
+        out.write_value(serde_json::json!({"ok": true, "override_lock": true}))?;
+    }
+    Ok(())
+}
+
 pub(crate) fn assign_uncommitted_to_stack(
     ctx: &mut Context,
     hunk_assignments: NonEmpty<&HunkAssignment>,
@@ -199,6 +227,29 @@ pub(crate) fn do_assignments(
     let context_lines = ctx.settings.context_lines;
     let (_guard, repo, ws, mut db) = ctx.workspace_and_db_mut()?;
     but_hunk_assignment::assign(db.hunk_assignments_mut()?, &repo, &ws, reqs, context_lines)?;
+    Ok(())
+}
+
+pub(crate) fn do_assignments_override_locks(
+    ctx: &mut Context,
+    reqs: Vec<HunkAssignmentRequest>,
+    out: &mut OutputChannel,
+) -> anyhow::Result<()> {
+    let context_lines = ctx.settings.context_lines;
+    let (_guard, repo, ws, mut db) = ctx.workspace_and_db_mut()?;
+    let rejections = but_hunk_assignment::assign_override_locks(
+        db.hunk_assignments_mut()?,
+        &repo,
+        &ws,
+        reqs,
+        None,
+        context_lines,
+    )?;
+    if !rejections.is_empty()
+        && let Some(out) = out.for_human()
+    {
+        writeln!(out, "{rejections:#?}")?;
+    }
     Ok(())
 }
 

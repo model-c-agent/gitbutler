@@ -927,6 +927,83 @@ pub(crate) fn handle_stage(
     out: &mut OutputChannel,
     file_or_hunk_str: &str,
     branch_str: &str,
+    override_lock: bool,
+) -> anyhow::Result<()> {
+    // Check if this is a comma-separated list of IDs
+    let ids: Vec<&str> = file_or_hunk_str.split(',').collect();
+    let is_batch = ids.len() > 1;
+
+    if is_batch {
+        let mut succeeded: usize = 0;
+        let mut failed: usize = 0;
+        let mut errors: Vec<String> = Vec::new();
+
+        for id_str in &ids {
+            let id_str = id_str.trim();
+            if id_str.is_empty() {
+                continue;
+            }
+            match stage_single(ctx, out, id_str, branch_str, override_lock) {
+                Ok(()) => succeeded += 1,
+                Err(e) => {
+                    failed += 1;
+                    errors.push(format!("  {} {}", id_str, format!("({e})").red()));
+                }
+            }
+        }
+
+        // Report results
+        if failed == 0 {
+            if let Some(w) = out.for_human() {
+                writeln!(
+                    w,
+                    "Staged {} item{} successfully.",
+                    succeeded.to_string().green().bold(),
+                    if succeeded == 1 { "" } else { "s" }
+                )?;
+            }
+            Ok(())
+        } else if succeeded == 0 {
+            if let Some(w) = out.for_human() {
+                writeln!(
+                    w,
+                    "Failed to stage all {} item{}:",
+                    failed.to_string().red().bold(),
+                    if failed == 1 { "" } else { "s" }
+                )?;
+                for err in &errors {
+                    writeln!(w, "{err}")?;
+                }
+            }
+            bail!("All {failed} staging operations failed.")
+        } else {
+            if let Some(w) = out.for_human() {
+                writeln!(
+                    w,
+                    "Staged {} item{}, {} failed:",
+                    succeeded.to_string().green().bold(),
+                    if succeeded == 1 { "" } else { "s" },
+                    failed.to_string().red().bold(),
+                )?;
+                for err in &errors {
+                    writeln!(w, "{err}")?;
+                }
+            }
+            bail!("{failed} of {} staging operations failed.", succeeded + failed)
+        }
+    } else {
+        // Single ID — preserve original behavior exactly
+        stage_single(ctx, out, file_or_hunk_str, branch_str, override_lock)
+    }
+}
+
+/// Stage a single file/hunk ID to a branch.
+fn stage_single(
+    ctx: &mut Context,
+    out: &mut OutputChannel,
+    file_or_hunk_str: &str,
+    branch_str: &str,
+    override_lock: bool,
 ) -> anyhow::Result<()> {
     let id_map = IdMap::new_from_context(ctx, None)?;
     let files = parse_sources_with_disambiguation(ctx, &id_map, file_or_hunk_str, out)?;
@@ -962,8 +1039,38 @@ pub(crate) fn handle_stage(
         }
     }
 
-    // Call the main rub handler
-    handle(ctx, out, file_or_hunk_str, branch_str)
+    if override_lock {
+        // When overriding locks, go directly through the assignment path
+        // to bypass hunk lock enforcement
+        let hunk_assignments: Vec<&but_hunk_assignment::HunkAssignment> = files
+            .iter()
+            .flat_map(|file| match file {
+                CliId::Uncommitted(u) => u.hunk_assignments.iter().collect::<Vec<_>>(),
+                CliId::PathPrefix {
+                    hunk_assignments, ..
+                } => hunk_assignments
+                    .iter()
+                    .map(|(_, assignment)| assignment)
+                    .collect::<Vec<_>>(),
+                _ => vec![],
+            })
+            .collect();
+        if let Some(hunk_assignments) = nonempty::NonEmpty::from_vec(hunk_assignments) {
+            let description = file_or_hunk_str.to_string();
+            create_snapshot(ctx, OperationKind::MoveHunk);
+            assign::assign_uncommitted_to_branch_with_override(
+                ctx,
+                hunk_assignments,
+                description,
+                branch_str,
+                out,
+            )?;
+        }
+        Ok(())
+    } else {
+        // Call the main rub handler
+        handle(ctx, out, file_or_hunk_str, branch_str)
+    }
 }
 
 /// Handler for `but stage --tui` - interactive hunk selection TUI.
