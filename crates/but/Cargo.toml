@@ -16,10 +16,16 @@ path = "src/main.rs"
 doctest = false
 
 [features]
-default = ["legacy"]
+default = ["legacy", "tui", "native"]
 ## A very specific utility flag to make clear that the 'but' binary is managed by a package manager.
 ## When set, the CLI cannot self-manage itself and commands like `but update install` are disabled.
 packaged-but-distribution = []
+
+# Marker features for platform capability gating
+tui = ["dep:ratatui", "dep:crossterm", "dep:minus", "dep:terminal_size"]
+native = []    # Native platform: git2, posthog, machine-uid, keyring
+wasi = []      # WASI target: no TUI, no native platform deps
+
 legacy = [
     "but-workspace/legacy",
     "but-api/legacy",
@@ -114,7 +120,7 @@ gix = { workspace = true, features = ["tracing", "tracing-detail"] }
 colored = "3.0.0"
 serde_json.workspace = true
 boolean-enums.workspace = true
-terminal_size = "0.4.3"
+terminal_size = { version = "0.4.3", optional = true }
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = [
     "env-filter",
@@ -127,11 +133,11 @@ dirs.workspace = true
 minus = { git = "https://github.com/arijit79/minus", rev = "57f1848f831d153a10d65060562ce1fdde938a01", default-features = false, features = [
     "static_output",
     "search",
-] }
+], optional = true }
 unicode-width = "0.2"
 cfg-if = "1.0.4"
-ratatui.workspace = true
-crossterm.workspace = true
+ratatui = { workspace = true, optional = true }
+crossterm = { workspace = true, optional = true }
 sha2.workspace = true
 machine-uid = "0.5.4"
 tempfile.workspace = true

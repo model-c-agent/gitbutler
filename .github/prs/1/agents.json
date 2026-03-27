@@ -1,0 +1,250 @@
+{
+  "$schema": "https://claude.ai/agents/v1",
+  "pr": 1,
+  "mainBranch": "feat/wasi",
+  "target": "master",
+  "workspace": {
+    "mode": "shared-fs",
+    "note": "All agents share the same filesystem. Isolation is at the git branch level via but."
+  },
+  "coordinator": {
+    "role": "orchestrator",
+    "instructions": "AGENT.md",
+    "context": ["../PR.md", "INDEX.md", "../SKILLS.md"],
+    "capabilities": ["dispatch", "answer-questions", "escalate", "cross-pollinate"],
+    "canWriteQuestionsInAnyWorkspace": true
+  },
+  "tiers": [
+    {
+      "name": "root",
+      "parallel": false,
+      "agents": ["s01"]
+    },
+    {
+      "name": "tier-1",
+      "parallel": true,
+      "agents": ["s02", "s03", "s04", "s05", "s06", "s07", "s08"]
+    },
+    {
+      "name": "tier-2",
+      "parallel": true,
+      "agents": ["s09", "s10", "s11"]
+    },
+    {
+      "name": "integration",
+      "parallel": false,
+      "agents": ["s12", "s13", "s14", "s15", "s16"]
+    }
+  ],
+  "agents": {
+    "s01": {
+      "id": "s01",
+      "folder": "s01/feat/wasi-feature-flags",
+      "branch": "pr1/s01/feat/wasi-feature-flags",
+      "anchor": "feat/wasi",
+      "deps": [],
+      "description": "Cargo wasi feature + build config",
+      "size": "S",
+      "commit": "feat: add wasi cargo feature flag and wasip2 build configuration",
+      "crates": ["but"],
+      "files": ["Cargo.toml", "crates/but/Cargo.toml", ".cargo/config.toml"]
+    },
+    "s02": {
+      "id": "s02",
+      "folder": "s01.s02/feat/wasi-serde-objectid",
+      "branch": "pr1/s01.s02/feat/wasi-serde-objectid",
+      "anchor": "pr1/s01/feat/wasi-feature-flags",
+      "deps": ["s01"],
+      "description": "but-serde: ObjectId abstraction (gate git2::Oid)",
+      "size": "M",
+      "commit": "feat: abstract ObjectId in but-serde to gate git2::Oid for WASI",
+      "crates": ["but-serde"],
+      "files": ["crates/but-serde/Cargo.toml", "crates/but-serde/src/"]
+    },
+    "s03": {
+      "id": "s03",
+      "folder": "s01.s03/feat/wasi-oxidize-noop",
+      "branch": "pr1/s01.s03/feat/wasi-oxidize-noop",
+      "anchor": "pr1/s01/feat/wasi-feature-flags",
+      "deps": ["s01"],
+      "description": "but-oxidize: no-op under wasi",
+      "size": "S",
+      "commit": "feat: make but-oxidize a no-op under wasi feature",
+      "crates": ["but-oxidize"],
+      "files": ["crates/but-oxidize/Cargo.toml", "crates/but-oxidize/src/"]
+    },
+    "s04": {
+      "id": "s04",
+      "folder": "s01.s04/feat/wasi-gate-tui",
+      "branch": "pr1/s01.s04/feat/wasi-gate-tui",
+      "anchor": "pr1/s01/feat/wasi-feature-flags",
+      "deps": ["s01"],
+      "description": "Gate ratatui/crossterm/pager",
+      "size": "M",
+      "commit": "feat: gate TUI/terminal dependencies for WASI",
+      "crates": ["but"],
+      "files": ["crates/but/Cargo.toml", "crates/but/src/"]
+    },
+    "s05": {
+      "id": "s05",
+      "folder": "s01.s05/feat/wasi-gate-process",
+      "branch": "pr1/s01.s05/feat/wasi-gate-process",
+      "anchor": "pr1/s01/feat/wasi-feature-flags",
+      "deps": ["s01"],
+      "description": "Gate std::process::Command",
+      "size": "M",
+      "commit": "feat: gate process spawning for WASI",
+      "crates": ["but", "but-core"],
+      "files": ["crates/but/Cargo.toml", "crates/but/src/", "crates/but-core/src/"]
+    },
+    "s06": {
+      "id": "s06",
+      "folder": "s01.s06/feat/wasi-gate-networking",
+      "branch": "pr1/s01.s06/feat/wasi-gate-networking",
+      "anchor": "pr1/s01/feat/wasi-feature-flags",
+      "deps": ["s01"],
+      "description": "Gate reqwest/HTTP deps",
+      "size": "M",
+      "commit": "feat: gate networking dependencies (reqwest, ssh2, posthog) for WASI",
+      "crates": ["but-github", "but-gitlab", "but-update", "but-llm", "but", "but-forge"],
+      "files": [
+        "crates/but-github/Cargo.toml",
+        "crates/but-gitlab/Cargo.toml",
+        "crates/but-update/Cargo.toml",
+        "crates/but-llm/Cargo.toml",
+        "crates/but/Cargo.toml",
+        "crates/but-forge/Cargo.toml"
+      ]
+    },
+    "s07": {
+      "id": "s07",
+      "folder": "s01.s07/feat/wasi-gate-platform",
+      "branch": "pr1/s01.s07/feat/wasi-gate-platform",
+      "anchor": "pr1/s01/feat/wasi-feature-flags",
+      "deps": ["s01"],
+      "description": "Gate keyring/dirs/notify",
+      "size": "M",
+      "commit": "feat: gate platform-specific deps (keyring, dirs, notify) for WASI",
+      "crates": ["but-secret", "but-settings", "but-path", "but", "but-api"],
+      "files": [
+        "crates/but-secret/Cargo.toml",
+        "crates/but-secret/src/",
+        "crates/but-settings/Cargo.toml",
+        "crates/but-path/Cargo.toml",
+        "crates/but/Cargo.toml",
+        "crates/but-api/Cargo.toml"
+      ]
+    },
+    "s08": {
+      "id": "s08",
+      "folder": "s01.s08/feat/wasi-gate-sqlite",
+      "branch": "pr1/s01.s08/feat/wasi-gate-sqlite",
+      "anchor": "pr1/s01/feat/wasi-feature-flags",
+      "deps": ["s01"],
+      "description": "Gate or adapt rusqlite",
+      "size": "M",
+      "commit": "feat: gate or adapt rusqlite for WASI builds",
+      "crates": ["but-db"],
+      "files": ["crates/but-db/Cargo.toml", "crates/but-db/src/"],
+      "risk": "HIGH — rusqlite bundled C may not compile for wasip2"
+    },
+    "s09": {
+      "id": "s09",
+      "folder": "s02.s09/feat/wasi-gate-ctx",
+      "branch": "pr1/s02.s09/feat/wasi-gate-ctx",
+      "anchor": "pr1/s01.s02/feat/wasi-serde-objectid",
+      "deps": ["s02"],
+      "description": "but-ctx: gate git2::Repository field",
+      "size": "M",
+      "commit": "feat: gate git2::Repository in but-ctx for WASI",
+      "crates": ["but-ctx"],
+      "files": ["crates/but-ctx/Cargo.toml", "crates/but-ctx/src/"]
+    },
+    "s10": {
+      "id": "s10",
+      "folder": "s09.s10/feat/wasi-gate-core-checkout",
+      "branch": "pr1/s09.s10/feat/wasi-gate-core-checkout",
+      "anchor": "pr1/s02.s09/feat/wasi-gate-ctx",
+      "deps": ["s09"],
+      "description": "but-core: gate worktree/checkout",
+      "size": "S",
+      "commit": "feat: gate but-core worktree/checkout module for WASI",
+      "crates": ["but-core"],
+      "files": ["crates/but-core/Cargo.toml", "crates/but-core/src/worktree/checkout/"]
+    },
+    "s11": {
+      "id": "s11",
+      "folder": "s05.s11/feat/wasi-tokio-singlethread",
+      "branch": "pr1/s05.s11/feat/wasi-tokio-singlethread",
+      "anchor": "pr1/s01.s05/feat/wasi-gate-process",
+      "deps": ["s05"],
+      "description": "Single-threaded tokio runtime",
+      "size": "M",
+      "commit": "feat: configure single-threaded tokio runtime for WASI",
+      "crates": ["but"],
+      "files": ["crates/but/Cargo.toml", "crates/but/src/main.rs"]
+    },
+    "s12": {
+      "id": "s12",
+      "folder": "s02-s11.s12/feat/wasi-gix-features",
+      "branch": "pr1/s02-s11.s12/feat/wasi-gix-features",
+      "anchor": "feat/wasi",
+      "deps": ["s02", "s03", "s04", "s05", "s06", "s07", "s08", "s09", "s10", "s11"],
+      "description": "gix WASI feature audit + config",
+      "size": "M",
+      "commit": "feat: configure minimal gix feature set for WASI",
+      "crates": ["but-core", "but-ctx", "but-diff", "but-merge"],
+      "files": ["Cargo.toml", "crates/but-core/Cargo.toml", "crates/but-ctx/Cargo.toml"]
+    },
+    "s13": {
+      "id": "s13",
+      "folder": "s12.s13/feat/wasi-first-compile",
+      "branch": "pr1/s12.s13/feat/wasi-first-compile",
+      "anchor": "pr1/s02-s11.s12/feat/wasi-gix-features",
+      "deps": ["s12"],
+      "description": "Fix remaining compile errors",
+      "size": "M",
+      "commit": "feat: first successful wasm32-wasip2 compilation",
+      "crates": ["*"],
+      "files": [],
+      "note": "Scope determined by actual compile errors — files list populated during implementation"
+    },
+    "s14": {
+      "id": "s14",
+      "folder": "s13.s14/feat/wasi-runtime-host",
+      "branch": "pr1/s13.s14/feat/wasi-runtime-host",
+      "anchor": "pr1/s12.s13/feat/wasi-first-compile",
+      "deps": ["s13"],
+      "description": "but-wasi-host: wasmtime host binary",
+      "size": "M",
+      "commit": "feat: add but-wasi-host crate with wasmtime runtime",
+      "crates": ["but-wasi-host"],
+      "files": ["crates/but-wasi-host/Cargo.toml", "crates/but-wasi-host/src/"],
+      "newCrate": true
+    },
+    "s15": {
+      "id": "s15",
+      "folder": "s14.s15/test/wasi-testing",
+      "branch": "pr1/s14.s15/test/wasi-testing",
+      "anchor": "pr1/s13.s14/feat/wasi-runtime-host",
+      "deps": ["s14"],
+      "description": "WASI test harness + smoke tests",
+      "size": "M",
+      "commit": "test: add WASI integration test harness and smoke tests",
+      "crates": ["but-wasi-host"],
+      "files": ["crates/but-wasi-host/tests/"]
+    },
+    "s16": {
+      "id": "s16",
+      "folder": "s15.s16/feat/wasi-ci-pipeline",
+      "branch": "pr1/s15.s16/feat/wasi-ci-pipeline",
+      "anchor": "pr1/s14.s15/test/wasi-testing",
+      "deps": ["s15"],
+      "description": "CI workflow for WASI builds",
+      "size": "S",
+      "commit": "feat: add GitHub Actions workflow for WASI builds",
+      "crates": [],
+      "files": [".github/workflows/wasi.yml"]
+    }
+  }
+}
