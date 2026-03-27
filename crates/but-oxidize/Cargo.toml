@@ -12,8 +12,11 @@ doctest = false
 
 [dependencies]
 anyhow.workspace = true
-git2.workspace = true
 gix = { workspace = true, features = ["merge"] }
+
+# Native-only deps
+[target.'cfg(not(target_os = "wasi"))'.dependencies]
+git2.workspace = true
 
 [lints]
 workspace = true
