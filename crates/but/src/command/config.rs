@@ -17,7 +17,6 @@ use serde::Serialize;
 use super::git_config::edit_git_config;
 use crate::{
     args::config::{ForgeSubcommand, MetricsStatus, Subcommands, UiSubcommand, UserSubcommand},
-    tui,
     utils::{ConfirmOrEmpty, InputOutputChannel, OutputChannel},
 };
 
@@ -276,7 +275,10 @@ fn get_user_config_info(config: &gix::config::Snapshot<'_>) -> UserConfigInfo {
     let (name, name_scope) = get_config_string_and_scope(config, "user.name");
     let (email, email_scope) = get_config_string_and_scope(config, "user.email");
     let (_editor, editor_scope) = get_config_string_and_scope(config, "core.editor");
-    let editor = tui::get_text::get_editor_command();
+    #[cfg(feature = "tui")]
+    let editor = crate::tui::get_text::get_editor_command();
+    #[cfg(not(feature = "tui"))]
+    let editor = None::<String>;
 
     UserConfigInfo {
         name,

@@ -8,7 +8,10 @@ pub use output_channel::{
 mod object_id;
 pub use object_id::{shorten_hex_object_id, shorten_object_id, split_short_id};
 
+#[cfg(feature = "tui")]
 mod pager;
+
+pub mod text;
 
 pub mod metrics;
 #[cfg(feature = "legacy")]

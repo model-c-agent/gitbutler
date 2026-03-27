@@ -1,7 +1,7 @@
 use colored::Colorize;
 
 use crate::args::Args;
-use crate::tui::text::{terminal_width, truncate_text};
+use crate::utils::text::{terminal_width, truncate_text};
 
 pub fn print_grouped(out: &mut dyn std::fmt::Write) -> std::fmt::Result {
     use std::collections::HashSet;

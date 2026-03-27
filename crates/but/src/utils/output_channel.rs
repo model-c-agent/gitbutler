@@ -1,15 +1,15 @@
 use std::io::{IsTerminal, Write};
 
 use but_secret::Sensitive;
+#[cfg(feature = "tui")]
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
 use crate::{
     args::OutputFormat,
-    utils::{
-        json_pretty_to_stdout,
-        pager::{self, Pager},
-    },
+    utils::json_pretty_to_stdout,
 };
+#[cfg(feature = "tui")]
+use crate::utils::pager::{self, Pager};
 
 /// Default value for a confirmation prompt.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -40,6 +40,7 @@ pub struct OutputChannel {
     /// The output to use if there is no pager.
     stdout: std::io::Stdout,
     /// Possibly a pager we are using. If `Some`, the pager itself is used for output instead of `stdout`.
+    #[cfg(feature = "tui")]
     pager: Option<Pager>,
     /// When `Some`, JSON values written via `write_value` are captured here instead of going to stdout.
     /// Used by `--status-after` to buffer mutation JSON before combining with status JSON.
@@ -130,10 +131,10 @@ pub trait WriteWithUtils: std::fmt::Write + 'static {
 
 impl WriteWithUtils for OutputChannel {
     fn truncate_if_unpaged(&self, text: &str, max_width: usize) -> String {
-        if self.pager.is_some() {
+        if self.is_paged() {
             text.to_owned()
         } else {
-            crate::tui::text::truncate_text(text, max_width).into_owned()
+            crate::utils::text::truncate_text(text, max_width).into_owned()
         }
     }
 
@@ -258,33 +259,30 @@ impl std::fmt::Write for OutputChannel {
         use std::io::Write;
         match self.format {
             OutputFormat::Human | OutputFormat::Shell => {
+                #[cfg(feature = "tui")]
                 match self.pager.as_mut() {
-                    Some(Pager::Builtin(pager)) => pager.write_str(s),
+                    Some(Pager::Builtin(pager)) => return pager.write_str(s),
                     Some(Pager::External(_, stdin)) => {
-                        stdin.write_all(s.as_bytes()).or_else(|err| {
+                        return stdin.write_all(s.as_bytes()).or_else(|err| {
                             if err.kind() == std::io::ErrorKind::BrokenPipe {
-                                // Ignore broken pipes and keep writing.
-                                // This allows the caller to use `?` without having to think
-                                // about ignoring errors selectively.
                                 Ok(())
                             } else {
                                 Err(std::fmt::Error)
                             }
                         })
                     }
-                    None => {
-                        self.stdout.write_all(s.as_bytes()).or_else(|err| {
-                            if err.kind() == std::io::ErrorKind::BrokenPipe {
-                                // Ignore broken pipes and keep writing.
-                                // This allows the caller to use `?` without having to think
-                                // about ignoring errors selectively.
-                                Ok(())
-                            } else {
-                                Err(std::fmt::Error)
-                            }
-                        })
-                    }
+                    None => {}
                 }
+                self.stdout.write_all(s.as_bytes()).or_else(|err| {
+                    if err.kind() == std::io::ErrorKind::BrokenPipe {
+                        // Ignore broken pipes and keep writing.
+                        // This allows the caller to use `?` without having to think
+                        // about ignoring errors selectively.
+                        Ok(())
+                    } else {
+                        Err(std::fmt::Error)
+                    }
+                })
             }
             OutputFormat::Json | OutputFormat::None => {
                 // It's not an error to try to write in JSON mode, it's a feature.
@@ -311,6 +309,7 @@ impl std::fmt::Write for InputOutputChannel<'_> {
     }
 }
 
+#[cfg(feature = "tui")]
 impl InputOutputChannel<'_> {
     fn readline(&mut self, prompt: &str, echo: InputEcho) -> anyhow::Result<ReadlineInput> {
         const PLACEHOLDER_FOR_SECRET: &str = "•";
@@ -506,6 +505,7 @@ impl InputOutputChannel<'_> {
 }
 
 /// Normalized result of collecting one line of terminal input.
+#[cfg(feature = "tui")]
 enum ReadlineInput {
     /// User entered non-empty text and submitted it.
     Text(String),
@@ -516,6 +516,7 @@ enum ReadlineInput {
 }
 
 /// How to play input back to the user during prompts.
+#[cfg(feature = "tui")]
 #[derive(Debug)]
 enum InputEcho {
     /// Show everything that's typed and displayable.
@@ -525,6 +526,7 @@ enum InputEcho {
 }
 
 /// Editing operation derived from a terminal key event.
+#[cfg(feature = "tui")]
 #[derive(Debug, PartialEq, Eq)]
 enum KeyEditAction {
     /// Insert the provided character into the current input buffer.
@@ -544,6 +546,7 @@ enum KeyEditAction {
 /// Only `Press` and `Repeat` events are handled; key releases are ignored.
 /// `line_is_empty` is used to model terminal EOF behavior: `Ctrl-D` ends input
 /// only when nothing has been typed on the current line.
+#[cfg(feature = "tui")]
 fn key_to_edit_action(key: KeyEvent, line_is_empty: bool) -> KeyEditAction {
     if !matches!(key.kind, KeyEventKind::Press | KeyEventKind::Repeat) {
         return KeyEditAction::Ignore;
@@ -571,8 +574,10 @@ fn key_to_edit_action(key: KeyEvent, line_is_empty: bool) -> KeyEditAction {
 }
 
 /// RAII guard that enables terminal raw mode on creation and restores normal mode on drop.
+#[cfg(feature = "tui")]
 struct RawModeGuard;
 
+#[cfg(feature = "tui")]
 impl RawModeGuard {
     fn new() -> std::io::Result<Self> {
         crossterm::terminal::enable_raw_mode()?;
@@ -580,9 +585,47 @@ impl RawModeGuard {
     }
 }
 
+#[cfg(feature = "tui")]
 impl Drop for RawModeGuard {
     fn drop(&mut self) {
         crossterm::terminal::disable_raw_mode().ok();
+    }
+}
+
+/// Fallback implementations when the `tui` feature is disabled.
+///
+/// These stubs allow calling code to compile without `#[cfg]` gates, but
+/// always return an error because terminal interaction requires crossterm.
+#[cfg(not(feature = "tui"))]
+impl InputOutputChannel<'_> {
+    /// Always fails — terminal prompting requires the `tui` feature.
+    pub fn prompt(&mut self, _prompt: impl AsRef<str>) -> anyhow::Result<Option<String>> {
+        anyhow::bail!("Interactive prompts require the `tui` feature")
+    }
+
+    /// Always fails — terminal prompting requires the `tui` feature.
+    pub fn prompt_secret(
+        &mut self,
+        _prompt: impl AsRef<str>,
+    ) -> anyhow::Result<Option<Sensitive<String>>> {
+        anyhow::bail!("Interactive prompts require the `tui` feature")
+    }
+
+    /// Always fails — terminal prompting requires the `tui` feature.
+    pub fn confirm(
+        &mut self,
+        _prompt: impl AsRef<str>,
+        _default: ConfirmDefault,
+    ) -> anyhow::Result<Confirm> {
+        anyhow::bail!("Interactive prompts require the `tui` feature")
+    }
+
+    /// Always fails — terminal prompting requires the `tui` feature.
+    pub fn confirm_no_default(
+        &mut self,
+        _prompt: impl AsRef<str>,
+    ) -> anyhow::Result<ConfirmOrEmpty> {
+        anyhow::bail!("Interactive prompts require the `tui` feature")
     }
 }
 
@@ -602,6 +645,7 @@ impl OutputChannel {
     /// to a `/dev/null` equivalent, so callers never have to worry if they interleave JSON with other output.
     pub fn new_with_optional_pager(format: OutputFormat, use_pager: bool) -> Self {
         let stdout = std::io::stdout();
+        #[cfg(feature = "tui")]
         let pager = if !use_pager
             || !matches!(format, OutputFormat::Human)
             || std::env::var_os("NOPAGER").is_some()
@@ -611,10 +655,13 @@ impl OutputChannel {
         } else {
             pager::try_init_pager()
         };
+        #[cfg(not(feature = "tui"))]
+        let _ = use_pager;
 
         OutputChannel {
             format,
             stdout,
+            #[cfg(feature = "tui")]
             pager,
             json_buffer: None,
         }
@@ -629,6 +676,7 @@ impl OutputChannel {
                 OutputFormat::Json => OutputFormat::None,
             },
             stdout: std::io::stdout(),
+            #[cfg(feature = "tui")]
             pager: None,
             json_buffer: None,
         }
@@ -646,6 +694,7 @@ impl Drop for OutputChannel {
         {
             eprintln!("warning: failed to flush buffered JSON on drop: {err}");
         }
+        #[cfg(feature = "tui")]
         match self.pager.take() {
             Some(Pager::Builtin(pager)) => {
                 minus::page_all(pager).ok();
@@ -661,7 +710,7 @@ impl Drop for OutputChannel {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "tui"))]
 mod tests {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 

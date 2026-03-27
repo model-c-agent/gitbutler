@@ -24,7 +24,7 @@ use crate::{
         status::output::{BranchLineContent, CommitLineContent, StatusOutput, StatusOutputLine},
     },
     id::{SegmentWithId, ShortId, StackWithId, TreeChangeWithId},
-    tui::text::truncate_text,
+    utils::text::truncate_text,
     utils::{
         OutputChannel, WriteWithUtils, shorten_hex_object_id, shorten_object_id, split_short_id,
         time::format_relative_time_verbose,
