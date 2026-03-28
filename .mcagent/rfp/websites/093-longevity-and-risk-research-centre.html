@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Longevity & Risk Research Centre -- Org 093</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#1a2332;--blue:#2c5f7c;--red:#c0392b;--green:#27ae60;
+  --bg:#ffffff;--bg-alt:#f5f5f5;--bg-panel:#fafbfc;
+  --border:#d0d7de;--text:#1a2332;--text-muted:#57606a;
+  --serif:"Georgia","Times New Roman",serif;
+  --sans:"Segoe UI","Helvetica Neue",Arial,sans-serif;
+  --mono:"Consolas","Monaco","Courier New",monospace;
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);color:var(--text);background:var(--bg);line-height:1.6;font-size:15px}
+h1,h2,h3,h4{font-family:var(--serif);font-weight:700;color:var(--navy)}
+h1{font-size:2.4rem;letter-spacing:-0.02em}
+h2{font-size:1.6rem;margin-bottom:0.75rem;border-bottom:2px solid var(--blue);padding-bottom:0.4rem;display:inline-block}
+h3{font-size:1.2rem;margin-bottom:0.5rem}
+p{margin-bottom:0.75rem}
+a{color:var(--blue);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* Layout */
+.container{max-width:1200px;margin:0 auto;padding:0 2rem}
+section{padding:3rem 0;border-bottom:1px solid var(--border)}
+section:last-child{border-bottom:none}
+
+/* Header */
+.header{background:var(--navy);color:#fff;padding:3rem 0 2rem;text-align:center}
+.header h1{color:#fff;margin-bottom:0.3rem}
+.header .subtitle{font-family:var(--serif);font-style:italic;color:#a0b4c8;font-size:1.1rem;margin-bottom:1.2rem}
+.header .meta{font-size:0.85rem;color:#7a98b3;display:flex;gap:2rem;justify-content:center;flex-wrap:wrap}
+.header .meta span{display:inline-flex;align-items:center;gap:0.4rem}
+.badge{background:var(--blue);color:#fff;padding:0.15rem 0.6rem;border-radius:3px;font-size:0.75rem;font-weight:600;letter-spacing:0.03em}
+
+/* Navigation */
+nav{background:var(--bg-alt);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+nav .container{display:flex;gap:0;overflow-x:auto}
+nav a{padding:0.75rem 1rem;font-size:0.8rem;font-weight:600;color:var(--text-muted);white-space:nowrap;border-bottom:2px solid transparent;transition:all 0.2s}
+nav a:hover{color:var(--navy);text-decoration:none;border-bottom-color:var(--blue)}
+
+/* Canvas containers */
+.canvas-wrap{position:relative;background:var(--bg);border:1px solid var(--border);border-radius:4px;overflow:hidden}
+canvas{display:block;width:100%;cursor:crosshair}
+
+/* Controls */
+.controls{display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin:1rem 0;padding:0.75rem 1rem;background:var(--bg-alt);border:1px solid var(--border);border-radius:4px;font-size:0.85rem}
+.controls label{font-weight:600;color:var(--navy)}
+.controls select,.controls input[type=range],.controls input[type=number],.controls button{
+  font-family:var(--sans);font-size:0.85rem;padding:0.3rem 0.6rem;border:1px solid var(--border);border-radius:3px;background:#fff}
+.controls button{background:var(--blue);color:#fff;border:none;cursor:pointer;font-weight:600;padding:0.4rem 1rem;transition:background 0.2s}
+.controls button:hover{background:var(--navy)}
+input[type=range]{width:200px;accent-color:var(--blue)}
+
+/* Cards */
+.card{background:var(--bg-panel);border:1px solid var(--border);border-radius:4px;padding:1.25rem;margin-bottom:1rem}
+.card h3{font-family:var(--sans)}
+
+/* Life table */
+.life-table{width:100%;border-collapse:collapse;font-size:0.82rem;font-family:var(--mono)}
+.life-table th{background:var(--navy);color:#fff;padding:0.5rem 0.75rem;text-align:right;font-weight:600;position:sticky;top:0}
+.life-table th:first-child{text-align:left}
+.life-table td{padding:0.4rem 0.75rem;text-align:right;border-bottom:1px solid var(--border)}
+.life-table td:first-child{text-align:left;font-weight:600}
+.life-table tr:nth-child(even){background:var(--bg-alt)}
+.life-table tr:hover{background:#e8f0f8}
+.life-table-wrap{max-height:420px;overflow-y:auto;border:1px solid var(--border);border-radius:4px}
+
+/* Graveyard */
+.tombstone{display:inline-block;background:var(--bg-alt);border:1px solid var(--border);border-radius:6px 6px 0 0;padding:1rem 1.25rem;margin:0.5rem;min-width:220px;max-width:280px;vertical-align:top;position:relative}
+.tombstone::before{content:"\u271D";display:block;text-align:center;font-size:1.4rem;color:var(--text-muted);margin-bottom:0.4rem}
+.tombstone .name{font-family:var(--serif);font-weight:700;font-size:0.95rem;text-align:center;margin-bottom:0.3rem}
+.tombstone .dates{font-size:0.75rem;color:var(--text-muted);text-align:center;margin-bottom:0.4rem}
+.tombstone .epitaph{font-family:var(--serif);font-style:italic;font-size:0.8rem;text-align:center;color:var(--text-muted)}
+.tombstone .cause{font-size:0.7rem;color:var(--red);text-align:center;margin-top:0.3rem;font-weight:600}
+.graveyard-scroll{overflow-x:auto;white-space:nowrap;padding:1rem 0}
+
+/* Calculator */
+.calc-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+@media(max-width:768px){.calc-grid{grid-template-columns:1fr}}
+.calc-result{font-family:var(--mono);background:var(--bg-alt);border:1px solid var(--border);border-radius:4px;padding:1rem;margin-top:1rem;font-size:0.85rem;line-height:1.8}
+.calc-result .val{font-size:1.4rem;font-weight:700;color:var(--blue)}
+.formula{font-family:var(--mono);font-size:0.82rem;background:var(--bg-alt);padding:0.75rem 1rem;border-left:3px solid var(--blue);margin:0.75rem 0;overflow-x:auto;white-space:pre;line-height:1.5}
+
+/* Score section */
+.score-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-top:1rem}
+.score-card{text-align:center;padding:1.25rem;background:var(--bg-panel);border:1px solid var(--border);border-radius:4px}
+.score-card .score-val{font-size:2rem;font-weight:700;color:var(--blue);font-family:var(--mono)}
+.score-card .score-label{font-size:0.8rem;color:var(--text-muted);margin-top:0.25rem}
+.score-card .ci{font-size:0.75rem;color:var(--text-muted);font-family:var(--mono)}
+.overall-score{font-size:3.5rem;font-weight:700;color:var(--navy);font-family:var(--mono);text-align:center;margin:1rem 0 0.25rem}
+.overall-label{text-align:center;font-size:0.9rem;color:var(--text-muted);margin-bottom:1rem}
+
+/* Legend */
+.legend{display:flex;gap:1.5rem;flex-wrap:wrap;font-size:0.8rem;margin:0.75rem 0}
+.legend-item{display:flex;align-items:center;gap:0.4rem}
+.legend-dot{width:12px;height:12px;border-radius:2px;flex-shrink:0}
+
+/* Tooltip */
+.tooltip{position:absolute;background:var(--navy);color:#fff;padding:0.4rem 0.7rem;border-radius:3px;font-size:0.75rem;font-family:var(--mono);pointer-events:none;z-index:50;white-space:nowrap}
+
+/* Quote */
+.quote{font-family:var(--serif);font-style:italic;font-size:1.05rem;color:var(--text-muted);border-left:3px solid var(--blue);padding:0.75rem 1.25rem;margin:1.5rem 0}
+.quote .attr{font-style:normal;font-size:0.85rem;display:block;margin-top:0.4rem;font-weight:600;color:var(--navy)}
+
+/* Footer */
+.footer{background:var(--navy);color:#7a98b3;padding:2rem 0;text-align:center;font-size:0.8rem}
+.footer a{color:#a0b4c8}
+
+/* Readout */
+.readout{font-family:var(--mono);font-size:0.8rem;color:var(--text-muted);margin:0.5rem 0}
+.readout strong{color:var(--navy)}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="container">
+    <h1>The Longevity & Risk Research Centre</h1>
+    <div class="subtitle">"Every memory has a half-life. The question is what distribution governs its decay."</div>
+    <div class="meta">
+      <span><span class="badge">ORG 093</span></span>
+      <span>Rank #4</span>
+      <span>Score 88.4 / 100</span>
+      <span>Insurance Actuarial / Academic Research Lab</span>
+      <span>5 Agents</span>
+    </div>
+  </div>
+</div>
+
+<!-- Navigation -->
+<nav>
+  <div class="container">
+    <a href="#survival">Survival Curves</a>
+    <a href="#hazard">Hazard Rates</a>
+    <a href="#graveyard">Memory Graveyard</a>
+    <a href="#calculator">Actuary's Desk</a>
+    <a href="#lifetable">Life Table</a>
+    <a href="#scoring">Actuarial Report</a>
+  </div>
+</nav>
+
+<!-- Section 1: Survival Curves -->
+<section id="survival">
+  <div class="container">
+    <h2>Kaplan-Meier Survival Curves</h2>
+    <p>Survival probability S(t) of memory entries by type. Each curve is fitted to its distribution family. Shaded bands show 95% confidence intervals. Drag the time slider to inspect survival at any point.</p>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#2c5f7c"></div> Architectural (Weibull)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#c0392b"></div> Bug-fix (Exponential)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#27ae60"></div> Convention (Bathtub)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#8e44ad"></div> Dependency (Weibull)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#d4891c"></div> Task Context (Exponential)</div>
+    </div>
+    <div class="controls">
+      <label>Time (days):</label>
+      <input type="range" id="timeSlider" min="0" max="365" value="90" oninput="updateTimeReadout()">
+      <span id="timeVal" class="readout" style="min-width:50px">90d</span>
+      <span id="survReadout" class="readout"></span>
+    </div>
+    <div class="canvas-wrap">
+      <canvas id="survivalCanvas" height="420"></canvas>
+      <div id="survTooltip" class="tooltip" style="display:none"></div>
+    </div>
+  </div>
+</section>
+
+<!-- Section 2: Hazard Rate Visualizer -->
+<section id="hazard">
+  <div class="container">
+    <h2>Hazard Rate Visualizer</h2>
+    <p>The hazard function h(t) gives the instantaneous probability a memory becomes irrelevant at time t, given it has survived until t. Add memory types and watch their hazard rates diverge.</p>
+    <div class="controls">
+      <label>Add memory:</label>
+      <select id="hazardType">
+        <option value="architectural">Architectural (Weibull)</option>
+        <option value="bugfix">Bug-fix (Exponential)</option>
+        <option value="convention">Convention (Bathtub)</option>
+        <option value="pattern">Pattern (Weibull k=2.5)</option>
+      </select>
+      <button onclick="addHazardCurve()">Add Curve</button>
+      <button onclick="resetHazardCurves()" style="background:var(--text-muted)">Reset</button>
+      <span id="hazardReadout" class="readout"></span>
+    </div>
+    <div class="canvas-wrap">
+      <canvas id="hazardCanvas" height="380"></canvas>
+      <div id="hazTooltip" class="tooltip" style="display:none"></div>
+    </div>
+  </div>
+</section>
+
+<!-- Section 3: Memory Graveyard -->
+<section id="graveyard">
+  <div class="container">
+    <h2>Memory Graveyard</h2>
+    <p style="font-family:var(--serif);font-style:italic;color:var(--text-muted);margin-bottom:1.5rem">In memoriam: memories that served faithfully before their survival functions reached terminal decline.</p>
+    <div class="graveyard-scroll" id="graveyardScroll"></div>
+  </div>
+</section>
+
+<!-- Section 4: The Actuary's Desk -->
+<section id="calculator">
+  <div class="container">
+    <h2>The Actuary's Desk</h2>
+    <p>Compute survival probability for any memory. Select a type, enter its age and access pattern, and the system fits the appropriate distribution.</p>
+    <div class="calc-grid">
+      <div class="card">
+        <h3>Input Parameters</h3>
+        <div style="margin-top:0.75rem">
+          <label style="display:block;font-weight:600;margin-bottom:0.3rem;font-size:0.85rem">Memory Type</label>
+          <select id="calcType" style="width:100%;padding:0.4rem;font-size:0.9rem;border:1px solid var(--border);border-radius:3px" onchange="computeSurvival()">
+            <option value="architectural">Architectural (Weibull k=1.8, lambda=180d)</option>
+            <option value="bugfix">Bug-fix (Exponential lambda=3d)</option>
+            <option value="convention">Convention (Bathtub)</option>
+            <option value="dependency">Dependency (Weibull k=2.0, lambda=120d)</option>
+            <option value="task">Task Context (Exponential lambda=2d)</option>
+            <option value="crossrepo">Cross-repo (Log-normal mu=3.5, sigma=1.2)</option>
+          </select>
+        </div>
+        <div style="margin-top:0.75rem">
+          <label style="display:block;font-weight:600;margin-bottom:0.3rem;font-size:0.85rem">Age (days)</label>
+          <input type="number" id="calcAge" value="30" min="0" max="1000" style="width:100%;padding:0.4rem;font-size:0.9rem;border:1px solid var(--border);border-radius:3px" oninput="computeSurvival()">
+        </div>
+        <div style="margin-top:0.75rem">
+          <label style="display:block;font-weight:600;margin-bottom:0.3rem;font-size:0.85rem">Access Count (in last 30 days)</label>
+          <input type="number" id="calcAccess" value="5" min="0" max="100" style="width:100%;padding:0.4rem;font-size:0.9rem;border:1px solid var(--border);border-radius:3px" oninput="computeSurvival()">
+        </div>
+        <div style="margin-top:0.75rem">
+          <label style="display:block;font-weight:600;margin-bottom:0.3rem;font-size:0.85rem">Surprise Index</label>
+          <input type="range" id="calcSurprise" min="0" max="1" step="0.01" value="0.08" style="width:100%" oninput="document.getElementById('surpriseVal').textContent=this.value;computeSurvival()">
+          <span id="surpriseVal" style="font-family:var(--mono);font-size:0.85rem">0.08</span>
+        </div>
+      </div>
+      <div class="card" id="calcOutput">
+        <h3>Survival Analysis</h3>
+        <div id="calcResult" class="calc-result" style="margin-top:0.75rem">
+          <em>Adjust parameters to compute...</em>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Section 5: Life Table -->
+<section id="lifetable">
+  <div class="container">
+    <h2>Actuarial Life Table for Memories</h2>
+    <p>A classic life table applied to a simulated cohort of 1,000 memories. Select a memory type to view its mortality schedule.</p>
+    <div class="controls">
+      <label>Memory type:</label>
+      <select id="ltType" onchange="buildLifeTable()">
+        <option value="architectural">Architectural (Weibull)</option>
+        <option value="bugfix">Bug-fix (Exponential)</option>
+        <option value="convention">Convention (Bathtub)</option>
+        <option value="dependency">Dependency (Weibull)</option>
+        <option value="task">Task Context (Exponential)</option>
+      </select>
+      <label>Interval (days):</label>
+      <select id="ltInterval" onchange="buildLifeTable()">
+        <option value="7">7</option>
+        <option value="14">14</option>
+        <option value="30" selected>30</option>
+      </select>
+    </div>
+    <div class="life-table-wrap">
+      <table class="life-table" id="lifeTableBody">
+        <thead>
+          <tr>
+            <th>Age (days)</th>
+            <th>l(x) Alive</th>
+            <th>d(x) Died</th>
+            <th>q(x) Mortality</th>
+            <th>S(x) Survival</th>
+            <th>h(x) Hazard</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="ltTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Section 6: Scoring / Actuarial Report -->
+<section id="scoring">
+  <div class="container">
+    <h2>Actuarial Assessment Report</h2>
+    <p style="font-family:var(--serif)">Formal evaluation of Proposal 093 submitted by The Longevity & Risk Research Centre. Assessment conducted under the Vassiliev-Okonkwo Framework with full posterior uncertainty quantification.</p>
+
+    <div class="overall-score">88.4</div>
+    <div class="overall-label">Composite Score (out of 100) &mdash; 95% CI: [85.1, 91.7]</div>
+
+    <div class="score-grid">
+      <div class="score-card">
+        <div class="score-val">9.2</div>
+        <div class="score-label">Plugin Architecture (RFP 3.1)</div>
+        <div class="ci">CI: [8.8, 9.6] / 10</div>
+      </div>
+      <div class="score-card">
+        <div class="score-val">8.8</div>
+        <div class="score-label">Provider-Agnostic Interface (RFP 3.2)</div>
+        <div class="ci">CI: [8.3, 9.3] / 10</div>
+      </div>
+      <div class="score-card">
+        <div class="score-val">9.5</div>
+        <div class="score-label">The But Agent (RFP 3.3)</div>
+        <div class="ci">CI: [9.1, 9.9] / 10</div>
+      </div>
+      <div class="score-card">
+        <div class="score-val">8.6</div>
+        <div class="score-label">Polyrepo Coordination (RFP 3.4)</div>
+        <div class="ci">CI: [8.0, 9.2] / 10</div>
+      </div>
+      <div class="score-card">
+        <div class="score-val">9.8</div>
+        <div class="score-label">Memory & Identity (RFP 3.5)</div>
+        <div class="ci">CI: [9.5, 10.0] / 10</div>
+      </div>
+      <div class="score-card">
+        <div class="score-val">8.9</div>
+        <div class="score-label">Signed Commits (RFP 3.6)</div>
+        <div class="ci">CI: [8.4, 9.4] / 10</div>
+      </div>
+      <div class="score-card">
+        <div class="score-val">9.0</div>
+        <div class="score-label">Token Budget (RFP 3.7)</div>
+        <div class="ci">CI: [8.5, 9.5] / 10</div>
+      </div>
+      <div class="score-card">
+        <div class="score-val">8.7</div>
+        <div class="score-label">Testing Strategy</div>
+        <div class="ci">CI: [8.2, 9.2] / 10</div>
+      </div>
+      <div class="score-card">
+        <div class="score-val">9.4</div>
+        <div class="score-label">Originality & Domain Fit</div>
+        <div class="ci">CI: [9.0, 9.8] / 10</div>
+      </div>
+      <div class="score-card">
+        <div class="score-val">6.5</div>
+        <div class="score-label">Practical Simplicity</div>
+        <div class="ci">CI: [5.8, 7.2] / 10</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:1.5rem">
+      <h3 style="font-family:var(--serif)">Findings and Practitioner Summary</h3>
+      <p style="margin-top:0.75rem"><strong>Principal strength:</strong> The actuarial-table memory system is the most rigorous approach to memory expiration in the cohort. Fitted survival distributions are a genuine innovation over fixed TTLs, with clear theoretical grounding in survival analysis. The proposal demonstrates deep domain expertise applied with precision.</p>
+      <p><strong>Principal risk:</strong> Complexity. The five-agent research-group structure, while well-motivated, introduces coordination overhead. The Bayesian survival fitting requires access data that a newly deployed system will not have. Cold-start calibration is addressed but not fully resolved.</p>
+      <p><strong>Surprise Index assessment:</strong> 0.08 (low). The proposal is consistent with expectations given the submitting institution's expertise. No cohort review triggered.</p>
+      <p><strong>Survival estimate for this assessment:</strong> Weibull(k=2.1, lambda=90d). This evaluation has a median useful life of approximately 75 days, after which re-evaluation against updated cohort data is recommended.</p>
+    </div>
+
+    <div class="quote">
+      "The insurance industry discovered centuries ago that the only honest way to manage uncertainty is to measure it. We do not guess when memories expire. We estimate, with confidence intervals, when they will expire, and we update those estimates as evidence accumulates."
+      <span class="attr">-- Professor Elena Vassiliev, Principal Investigator</span>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<div class="footer">
+  <div class="container">
+    <p>The Longevity & Risk Research Centre (LRRC) &mdash; Org 093 &mdash; London School of Economics, Department of Statistics</p>
+    <p style="margin-top:0.3rem">Actuarial-Table Memory for <code>but-ai</code> &mdash; All models published under open-access license</p>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// DISTRIBUTIONS
+// ============================================================
+const DIST = {
+  // Weibull survival: S(t) = exp(-(t/lambda)^k)
+  weibullS(t,k,lam){ return Math.exp(-Math.pow(t/lam,k)); },
+  // Weibull hazard: h(t) = (k/lambda)*(t/lambda)^(k-1)
+  weibullH(t,k,lam){ return (k/lam)*Math.pow(t/lam,k-1); },
+  // Exponential survival: S(t) = exp(-t/lambda)
+  expS(t,lam){ return Math.exp(-t/lam); },
+  // Exponential hazard: constant = 1/lambda
+  expH(t,lam){ return 1/lam; },
+  // Bathtub hazard: h(t) = alpha*exp(-beta*t) + gamma + delta*t^2/10000
+  bathtubH(t,a,b,g,d){ return a*Math.exp(-b*t) + g + d*t*t/100000; },
+  // Bathtub survival: numeric integration
+  bathtubS(t,a,b,g,d){
+    let cumH=0; const dt=0.5;
+    for(let s=0;s<t;s+=dt) cumH+=this.bathtubH(s,a,b,g,d)*dt;
+    return Math.exp(-cumH);
+  },
+  // Log-normal survival
+  lognormS(t,mu,sig){
+    if(t<=0) return 1;
+    return 1-this.normalCDF((Math.log(t)-mu)/sig);
+  },
+  lognormH(t,mu,sig){
+    if(t<=0) return 0;
+    const z=(Math.log(t)-mu)/sig;
+    const pdf=Math.exp(-z*z/2)/(sig*t*Math.sqrt(2*Math.PI));
+    const surv=this.lognormS(t,mu,sig);
+    return surv>0.001? pdf/surv : 0;
+  },
+  normalCDF(x){
+    const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+    const sign=x<0?-1:1; x=Math.abs(x)/Math.sqrt(2);
+    const t=1/(1+p*x);
+    const y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+    return 0.5*(1+sign*y);
+  }
+};
+
+// Memory type configs
+const MEMORY_TYPES = {
+  architectural: { label:'Architectural', color:'#2c5f7c', surv:(t)=>DIST.weibullS(t,1.8,180), haz:(t)=>DIST.weibullH(t,1.8,180), desc:'Weibull(k=1.8, \u03BB=180d)' },
+  bugfix:        { label:'Bug-fix',       color:'#c0392b', surv:(t)=>DIST.expS(t,3),           haz:(t)=>DIST.expH(t,3),           desc:'Exp(\u03BB=3d)' },
+  convention:    { label:'Convention',     color:'#27ae60', surv:(t)=>DIST.bathtubS(t,0.08,0.15,0.002,0.08), haz:(t)=>DIST.bathtubH(t,0.08,0.15,0.002,0.08), desc:'Bathtub(\u03B1=0.08,\u03B2=0.15,\u03B3=0.002)' },
+  dependency:    { label:'Dependency',     color:'#8e44ad', surv:(t)=>DIST.weibullS(t,2.0,120), haz:(t)=>DIST.weibullH(t,2.0,120), desc:'Weibull(k=2.0, \u03BB=120d)' },
+  task:          { label:'Task Context',   color:'#d4891c', surv:(t)=>DIST.expS(t,2),           haz:(t)=>DIST.expH(t,2),           desc:'Exp(\u03BB=2d)' },
+  crossrepo:     { label:'Cross-repo',     color:'#16a085', surv:(t)=>DIST.lognormS(t,3.5,1.2), haz:(t)=>DIST.lognormH(t,3.5,1.2), desc:'LogNorm(\u03BC=3.5, \u03C3=1.2)' },
+  pattern:       { label:'Pattern',        color:'#e67e22', surv:(t)=>DIST.weibullS(t,2.5,150), haz:(t)=>DIST.weibullH(t,2.5,150), desc:'Weibull(k=2.5, \u03BB=150d)' }
+};
+
+// ============================================================
+// SURVIVAL CURVE CANVAS
+// ============================================================
+const survCanvas = document.getElementById('survivalCanvas');
+const survCtx = survCanvas.getContext('2d');
+let survAnimProgress = 0;
+const survTypes = ['architectural','bugfix','convention','dependency','task'];
+const TMAX = 365;
+
+function resizeCanvas(canvas){
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * (window.devicePixelRatio||1);
+  canvas.height = (canvas.getAttribute('height')||400) * (window.devicePixelRatio||1);
+  canvas.style.height = canvas.getAttribute('height')+'px';
+}
+
+function drawSurvivalChart(progress){
+  resizeCanvas(survCanvas);
+  const W = survCanvas.width, H = survCanvas.height;
+  const ctx = survCtx;
+  const dpr = window.devicePixelRatio||1;
+  const pad = {l:70*dpr, r:20*dpr, t:20*dpr, b:50*dpr};
+  const cw = W-pad.l-pad.r, ch = H-pad.t-pad.b;
+
+  ctx.clearRect(0,0,W,H);
+
+  // Grid
+  ctx.strokeStyle='#e0e0e0'; ctx.lineWidth=1*dpr;
+  for(let i=0;i<=10;i++){
+    const y=pad.t+ch*(1-i/10);
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cw,y); ctx.stroke();
+    ctx.fillStyle='#888'; ctx.font=(11*dpr)+'px Consolas, monospace'; ctx.textAlign='right'; ctx.textBaseline='middle';
+    ctx.fillText((i/10).toFixed(1), pad.l-8*dpr, y);
+  }
+  for(let d=0;d<=TMAX;d+=30){
+    const x=pad.l+cw*(d/TMAX);
+    ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,pad.t+ch); ctx.stroke();
+    ctx.fillStyle='#888'; ctx.font=(11*dpr)+'px Consolas, monospace'; ctx.textAlign='center'; ctx.textBaseline='top';
+    ctx.fillText(d+'d', x, pad.t+ch+6*dpr);
+  }
+
+  // Axis labels
+  ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--navy');
+  ctx.font='bold '+(12*dpr)+'px Segoe UI, sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText('Time (days)', pad.l+cw/2, H-6*dpr);
+  ctx.save(); ctx.translate(16*dpr, pad.t+ch/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText('S(t) Survival Probability', 0, 0);
+  ctx.restore();
+
+  // Axes
+  ctx.strokeStyle='#333'; ctx.lineWidth=1.5*dpr;
+  ctx.beginPath(); ctx.moveTo(pad.l,pad.t); ctx.lineTo(pad.l,pad.t+ch); ctx.lineTo(pad.l+cw,pad.t+ch); ctx.stroke();
+
+  // Time slider line
+  const sliderT = parseInt(document.getElementById('timeSlider').value);
+  const sliderX = pad.l + cw*(sliderT/TMAX);
+  ctx.strokeStyle='rgba(26,35,50,0.25)'; ctx.lineWidth=1*dpr; ctx.setLineDash([4*dpr,4*dpr]);
+  ctx.beginPath(); ctx.moveTo(sliderX,pad.t); ctx.lineTo(sliderX,pad.t+ch); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Draw each curve
+  const maxT = Math.min(TMAX, TMAX * progress);
+  const step = 1;
+
+  survTypes.forEach(key=>{
+    const mt = MEMORY_TYPES[key];
+    // Confidence band (approximate +-0.08 narrowing with sqrt(n))
+    ctx.fillStyle = mt.color+'18';
+    ctx.beginPath();
+    let first=true;
+    for(let t=0;t<=maxT;t+=step){
+      const s = mt.surv(t);
+      const band = 0.08 * Math.sqrt(s*(1-s+0.01)) * 1.96;
+      const y = pad.t + ch*(1-Math.min(1,s+band));
+      if(first){ctx.moveTo(pad.l+cw*(t/TMAX),y);first=false;}
+      else ctx.lineTo(pad.l+cw*(t/TMAX),y);
+    }
+    for(let t=maxT;t>=0;t-=step){
+      const s = mt.surv(t);
+      const band = 0.08 * Math.sqrt(s*(1-s+0.01)) * 1.96;
+      const y = pad.t + ch*(1-Math.max(0,s-band));
+      ctx.lineTo(pad.l+cw*(t/TMAX),y);
+    }
+    ctx.closePath(); ctx.fill();
+
+    // Curve with step function appearance
+    ctx.strokeStyle=mt.color; ctx.lineWidth=2.5*dpr;
+    ctx.beginPath();
+    const kmStep = 3;
+    let prevS = 1;
+    for(let t=0;t<=maxT;t+=kmStep){
+      const s = mt.surv(t);
+      const x = pad.l+cw*(t/TMAX);
+      const yPrev = pad.t+ch*(1-prevS);
+      const yCur = pad.t+ch*(1-s);
+      if(t===0) ctx.moveTo(x, yPrev);
+      else {
+        ctx.lineTo(x, yPrev); // horizontal step
+        ctx.lineTo(x, yCur);  // vertical drop
+      }
+      prevS=s;
+    }
+    ctx.stroke();
+
+    // Dot at slider position
+    if(sliderT<=maxT){
+      const sv = mt.surv(sliderT);
+      const dx = sliderX, dy = pad.t+ch*(1-sv);
+      ctx.fillStyle=mt.color;
+      ctx.beginPath(); ctx.arc(dx,dy,4.5*dpr,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#fff';
+      ctx.beginPath(); ctx.arc(dx,dy,2*dpr,0,Math.PI*2); ctx.fill();
+    }
+  });
+
+  // Thresholds
+  [0.25, 0.10].forEach((thresh,i)=>{
+    const y=pad.t+ch*(1-thresh);
+    ctx.strokeStyle=i===0?'#e67e22':'#c0392b'; ctx.lineWidth=1*dpr; ctx.setLineDash([6*dpr,3*dpr]);
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cw,y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle=i===0?'#e67e22':'#c0392b'; ctx.font=(10*dpr)+'px Consolas, monospace'; ctx.textAlign='left';
+    ctx.fillText(i===0?'Moribund (0.25)':'Deceased (0.10)', pad.l+4*dpr, y-4*dpr);
+  });
+}
+
+function updateTimeReadout(){
+  const t = parseInt(document.getElementById('timeSlider').value);
+  document.getElementById('timeVal').textContent = t+'d';
+  let parts = [];
+  survTypes.forEach(key=>{
+    const mt = MEMORY_TYPES[key];
+    parts.push(mt.label+': '+mt.surv(t).toFixed(3));
+  });
+  document.getElementById('survReadout').innerHTML = parts.join(' &nbsp;|&nbsp; ');
+  drawSurvivalChart(survAnimProgress);
+}
+
+function animateSurvival(){
+  if(survAnimProgress<1){
+    survAnimProgress+=0.015;
+    drawSurvivalChart(Math.min(1,survAnimProgress));
+    requestAnimationFrame(animateSurvival);
+  }
+}
+
+// Mouse hover on survival canvas
+survCanvas.addEventListener('mousemove',function(e){
+  const rect=survCanvas.getBoundingClientRect();
+  const dpr=window.devicePixelRatio||1;
+  const mx=(e.clientX-rect.left)*dpr, my=(e.clientY-rect.top)*dpr;
+  const W=survCanvas.width,H=survCanvas.height;
+  const pad={l:70*dpr,r:20*dpr,t:20*dpr,b:50*dpr};
+  const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
+  const t=((mx-pad.l)/cw)*TMAX;
+  if(t<0||t>TMAX){document.getElementById('survTooltip').style.display='none';return;}
+  let lines=[];
+  survTypes.forEach(key=>{
+    const mt=MEMORY_TYPES[key];
+    lines.push(mt.label+': S('+Math.round(t)+')='+mt.surv(t).toFixed(4));
+  });
+  const tip=document.getElementById('survTooltip');
+  tip.style.display='block';
+  tip.style.left=(e.clientX-rect.left+12)+'px';
+  tip.style.top=(e.clientY-rect.top-10)+'px';
+  tip.innerHTML='t = '+Math.round(t)+'d<br>'+lines.join('<br>');
+});
+survCanvas.addEventListener('mouseleave',()=>{document.getElementById('survTooltip').style.display='none';});
+
+
+// ============================================================
+// HAZARD RATE CANVAS
+// ============================================================
+const hazCanvas = document.getElementById('hazardCanvas');
+const hazCtx = hazCanvas.getContext('2d');
+let hazardCurves = [];
+let hazAnimProgress = 0;
+let hazAnimating = false;
+
+function addHazardCurve(){
+  const key = document.getElementById('hazardType').value;
+  if(hazardCurves.length>=6) return;
+  hazardCurves.push({...MEMORY_TYPES[key], key:key, id:Date.now()});
+  hazAnimProgress=0;
+  if(!hazAnimating) animateHazard();
+}
+function resetHazardCurves(){
+  hazardCurves=[];
+  drawHazardChart(1);
+}
+
+function drawHazardChart(progress){
+  resizeCanvas(hazCanvas);
+  const W=hazCanvas.width,H=hazCanvas.height;
+  const ctx=hazCtx;
+  const dpr=window.devicePixelRatio||1;
+  const pad={l:70*dpr,r:20*dpr,t:20*dpr,b:50*dpr};
+  const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
+
+  ctx.clearRect(0,0,W,H);
+
+  // Find max hazard for scaling
+  let maxH=0.05;
+  hazardCurves.forEach(c=>{
+    for(let t=1;t<=TMAX;t+=2){
+      const h=c.haz(t);
+      if(isFinite(h)&&h>maxH) maxH=h;
+    }
+  });
+  maxH=Math.ceil(maxH*20)/20; // round up nicely
+
+  // Grid
+  ctx.strokeStyle='#e0e0e0'; ctx.lineWidth=1*dpr;
+  const hSteps=8;
+  for(let i=0;i<=hSteps;i++){
+    const y=pad.t+ch*(1-i/hSteps);
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cw,y); ctx.stroke();
+    ctx.fillStyle='#888'; ctx.font=(11*dpr)+'px Consolas, monospace'; ctx.textAlign='right'; ctx.textBaseline='middle';
+    ctx.fillText((maxH*i/hSteps).toFixed(3), pad.l-8*dpr, y);
+  }
+  for(let d=0;d<=TMAX;d+=30){
+    const x=pad.l+cw*(d/TMAX);
+    ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,pad.t+ch); ctx.stroke();
+    ctx.fillStyle='#888'; ctx.font=(11*dpr)+'px Consolas, monospace'; ctx.textAlign='center'; ctx.textBaseline='top';
+    ctx.fillText(d+'d', x, pad.t+ch+6*dpr);
+  }
+
+  // Axes
+  ctx.fillStyle='var(--navy)';
+  ctx.font='bold '+(12*dpr)+'px Segoe UI, sans-serif'; ctx.textAlign='center';
+  ctx.fillText('Time (days)', pad.l+cw/2, H-6*dpr);
+  ctx.save(); ctx.translate(16*dpr, pad.t+ch/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText('h(t) Hazard Rate', 0, 0);
+  ctx.restore();
+  ctx.strokeStyle='#333'; ctx.lineWidth=1.5*dpr;
+  ctx.beginPath(); ctx.moveTo(pad.l,pad.t); ctx.lineTo(pad.l,pad.t+ch); ctx.lineTo(pad.l+cw,pad.t+ch); ctx.stroke();
+
+  if(hazardCurves.length===0){
+    ctx.fillStyle='#aaa'; ctx.font=(14*dpr)+'px Georgia, serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('Add memory types to see their hazard rates diverge over time', pad.l+cw/2, pad.t+ch/2);
+    return;
+  }
+
+  const maxT=Math.min(TMAX, TMAX*progress);
+
+  hazardCurves.forEach((c,ci)=>{
+    ctx.strokeStyle=c.color; ctx.lineWidth=2.5*dpr;
+    ctx.beginPath();
+    let started=false;
+    for(let t=1;t<=maxT;t+=1){
+      const h=c.haz(t);
+      if(!isFinite(h)) continue;
+      const x=pad.l+cw*(t/TMAX);
+      const y=pad.t+ch*(1-Math.min(h/maxH,1));
+      if(!started){ctx.moveTo(x,y);started=true;}
+      else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+
+    // Label at end
+    if(maxT>30){
+      const endH=c.haz(Math.floor(maxT));
+      if(isFinite(endH)){
+        const ex=pad.l+cw*(maxT/TMAX);
+        const ey=pad.t+ch*(1-Math.min(endH/maxH,1));
+        ctx.fillStyle=c.color; ctx.font='bold '+(10*dpr)+'px Segoe UI, sans-serif'; ctx.textAlign='left';
+        ctx.fillText(c.label, ex+5*dpr, ey);
+      }
+    }
+  });
+}
+
+function animateHazard(){
+  hazAnimating=true;
+  if(hazAnimProgress<1){
+    hazAnimProgress+=0.02;
+    drawHazardChart(Math.min(1,hazAnimProgress));
+    requestAnimationFrame(animateHazard);
+  } else {
+    hazAnimating=false;
+  }
+}
+
+hazCanvas.addEventListener('mousemove',function(e){
+  const rect=hazCanvas.getBoundingClientRect();
+  const dpr=window.devicePixelRatio||1;
+  const mx=(e.clientX-rect.left)*dpr;
+  const W=hazCanvas.width;
+  const pad={l:70*dpr,r:20*dpr};
+  const cw=W-pad.l-pad.r;
+  const t=((mx-pad.l)/cw)*TMAX;
+  if(t<1||t>TMAX||hazardCurves.length===0){document.getElementById('hazTooltip').style.display='none';return;}
+  let lines=[];
+  hazardCurves.forEach(c=>{
+    const h=c.haz(t);
+    if(isFinite(h)) lines.push(c.label+': h('+Math.round(t)+')='+h.toFixed(5));
+  });
+  const tip=document.getElementById('hazTooltip');
+  tip.style.display='block';
+  tip.style.left=(e.clientX-rect.left+12)+'px';
+  tip.style.top=(e.clientY-rect.top-10)+'px';
+  tip.innerHTML='t = '+Math.round(t)+'d<br>'+lines.join('<br>');
+});
+hazCanvas.addEventListener('mouseleave',()=>{document.getElementById('hazTooltip').style.display='none';});
+
+
+// ============================================================
+// MEMORY GRAVEYARD
+// ============================================================
+const graves = [
+  { name:'auth-middleware-v1', type:'Architectural', born:'2025-06-12', died:'2026-02-18', age:251, cause:'Framework migration to Axum. Weibull hazard exceeded 0.95.', epitaph:'Served 12,847 requests without complaint. Replaced by something async.' },
+  { name:'bug-null-avatar', type:'Bug-fix', born:'2026-03-25', died:'2026-03-25', age:0.3, cause:'Fixed in commit a3f91bc. Exponential decay: S(0.3d) < 0.01.', epitaph:'Born at 09:14. Died at 16:32. Never saw a second sunrise.' },
+  { name:'tabs-vs-spaces', type:'Convention', born:'2025-01-08', died:'2026-01-15', age:372, cause:'Team adopted Prettier. Bathtub hazard exit phase.', epitaph:'The war is over. Everyone lost.' },
+  { name:'npm-lockfile-v2', type:'Dependency', born:'2025-09-01', died:'2026-02-28', age:180, cause:'Migrated to pnpm. Weibull S(180d) = 0.12.', epitaph:'Held 847 dependency versions in perfect tension. Then pnpm happened.' },
+  { name:'sprint-42-context', type:'Task Context', born:'2026-03-20', died:'2026-03-22', age:2, cause:'Sprint ended. Exponential: lambda=2d, S(2)=0.37.', epitaph:'Knew everything about the login redesign. Forgot it all by Monday.' },
+  { name:'react-class-components', type:'Convention', born:'2024-03-01', died:'2025-11-20', age:629, cause:'Last class component deleted. Bathtub terminal phase.', epitaph:'setState was called. One final time.' },
+  { name:'docker-compose-v2', type:'Architectural', born:'2024-08-15', died:'2026-03-01', age:563, cause:'Kubernetes migration complete. Weibull S(563) < 0.05.', epitaph:'Composed 14 services into harmony. Kubernetes composed them into YAML.' },
+  { name:'typo-in-readme', type:'Bug-fix', born:'2026-03-27', died:'2026-03-27', age:0.1, cause:'Fixed in 4 minutes. Lambda=0.01d.', epitaph:'Breifly relevant. Very breifly.' },
+  { name:'python2-compat', type:'Architectural', born:'2023-01-15', died:'2025-07-01', age:897, cause:'Python 2 EOL compliance deadline. S(897) = 0.001.', epitaph:'print "goodbye, old friend"' },
+  { name:'jira-sprint-link', type:'Cross-repo', born:'2025-11-01', died:'2026-03-15', age:135, cause:'Migrated to Linear. Log-normal tail exhausted.', epitaph:'JIRA-4521 is now LIN-892. The tickets remember, even if we do not.' },
+];
+
+function renderGraveyard(){
+  const el=document.getElementById('graveyardScroll');
+  el.innerHTML='';
+  graves.forEach(g=>{
+    const d=document.createElement('div');
+    d.className='tombstone';
+    d.innerHTML=`
+      <div class="name">${g.name}</div>
+      <div class="dates">${g.born} -- ${g.died} (${g.age}d)</div>
+      <div class="epitaph">"${g.epitaph}"</div>
+      <div class="cause">${g.type} | ${g.cause}</div>
+    `;
+    el.appendChild(d);
+  });
+}
+
+
+// ============================================================
+// ACTUARY'S DESK CALCULATOR
+// ============================================================
+function computeSurvival(){
+  const type=document.getElementById('calcType').value;
+  const age=parseFloat(document.getElementById('calcAge').value)||0;
+  const access=parseInt(document.getElementById('calcAccess').value)||0;
+  const surprise=parseFloat(document.getElementById('calcSurprise').value)||0;
+
+  let S,h,formula,params,dist;
+
+  switch(type){
+    case 'architectural':
+      dist='Weibull'; params='k=1.8, \u03BB=180';
+      S=DIST.weibullS(age,1.8,180); h=DIST.weibullH(age,1.8,180);
+      formula=`S(t) = exp(-(t/\u03BB)^k)\nS(${age}) = exp(-(${age}/180)^1.8)\nS(${age}) = exp(-${Math.pow(age/180,1.8).toFixed(6)})\nS(${age}) = ${S.toFixed(6)}\n\nh(t) = (k/\u03BB)(t/\u03BB)^(k-1)\nh(${age}) = (1.8/180)(${age}/180)^0.8\nh(${age}) = ${h.toFixed(6)}`;
+      break;
+    case 'bugfix':
+      dist='Exponential'; params='\u03BB=3d';
+      S=DIST.expS(age,3); h=DIST.expH(age,3);
+      formula=`S(t) = exp(-t/\u03BB)\nS(${age}) = exp(-${age}/3)\nS(${age}) = ${S.toFixed(6)}\n\nh(t) = 1/\u03BB = ${h.toFixed(6)} (constant)`;
+      break;
+    case 'convention':
+      dist='Bathtub'; params='\u03B1=0.08, \u03B2=0.15, \u03B3=0.002';
+      S=DIST.bathtubS(age,0.08,0.15,0.002,0.08); h=DIST.bathtubH(age,0.08,0.15,0.002,0.08);
+      formula=`h(t) = \u03B1*exp(-\u03B2*t) + \u03B3 + \u03B4*t\u00B2/100000\nh(${age}) = 0.08*exp(-0.15*${age}) + 0.002 + 0.08*${age}\u00B2/100000\nh(${age}) = ${h.toFixed(6)}\n\nS(t) = exp(-\u222B\u2080\u1D57 h(u) du)  [numeric integration]\nS(${age}) = ${S.toFixed(6)}`;
+      break;
+    case 'dependency':
+      dist='Weibull'; params='k=2.0, \u03BB=120d';
+      S=DIST.weibullS(age,2.0,120); h=DIST.weibullH(age,2.0,120);
+      formula=`S(t) = exp(-(t/\u03BB)^k)\nS(${age}) = exp(-(${age}/120)^2.0)\nS(${age}) = ${S.toFixed(6)}\n\nh(t) = (k/\u03BB)(t/\u03BB)^(k-1)\nh(${age}) = ${h.toFixed(6)}`;
+      break;
+    case 'task':
+      dist='Exponential'; params='\u03BB=2d';
+      S=DIST.expS(age,2); h=DIST.expH(age,2);
+      formula=`S(t) = exp(-t/\u03BB)\nS(${age}) = exp(-${age}/2)\nS(${age}) = ${S.toFixed(6)}\n\nh(t) = 1/\u03BB = ${h.toFixed(6)} (constant)`;
+      break;
+    case 'crossrepo':
+      dist='Log-normal'; params='\u03BC=3.5, \u03C3=1.2';
+      S=DIST.lognormS(age,3.5,1.2); h=DIST.lognormH(age,3.5,1.2);
+      formula=`S(t) = 1 - \u03A6((ln(t) - \u03BC) / \u03C3)\nS(${age}) = 1 - \u03A6((ln(${age}) - 3.5) / 1.2)\nS(${age}) = 1 - \u03A6(${((Math.log(age)-3.5)/1.2).toFixed(4)})\nS(${age}) = ${S.toFixed(6)}\n\nh(t) = f(t) / S(t)\nh(${age}) = ${h.toFixed(6)}`;
+      break;
+  }
+
+  // Surprise boost: if access > expected, boost survival
+  const expectedAccess = Math.max(1, S * 10); // baseline expected
+  const surpriseBoost = access > expectedAccess ? Math.min(0.15, (access-expectedAccess)*0.01) : 0;
+  const adjustedS = Math.min(1, S + surpriseBoost);
+
+  // Relevance score
+  const embSim = 0.75; // mock
+  const hazRecency = S>0.01 ? (1/(1+h*age)) : 0;
+  const accessFreq = Math.min(1, access/20);
+  const gof = 0.82;
+  const relevance = 0.30*embSim + 0.25*adjustedS + 0.20*hazRecency + 0.15*accessFreq + 0.10*gof;
+
+  // Status
+  let status, statusColor;
+  if(adjustedS >= 0.25){ status='ALIVE'; statusColor='var(--green)'; }
+  else if(adjustedS >= 0.10){ status='MORIBUND'; statusColor='#e67e22'; }
+  else{ status='DECEASED'; statusColor='var(--red)'; }
+
+  document.getElementById('calcResult').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+      <div><span style="font-size:0.8rem;color:var(--text-muted)">Distribution</span><br><strong>${dist}(${params})</strong></div>
+      <div style="text-align:right"><span style="font-size:0.8rem;color:var(--text-muted)">Status</span><br><strong style="color:${statusColor};font-size:1.2rem">${status}</strong></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;margin-bottom:0.75rem">
+      <div><span style="font-size:0.75rem;color:var(--text-muted)">S(${age})</span><br><span class="val" style="color:${adjustedS>=0.25?'var(--green)':adjustedS>=0.10?'#e67e22':'var(--red)'}">${adjustedS.toFixed(4)}</span></div>
+      <div><span style="font-size:0.75rem;color:var(--text-muted)">h(${age})</span><br><span class="val" style="color:var(--red)">${h.toFixed(5)}</span></div>
+      <div><span style="font-size:0.75rem;color:var(--text-muted)">Relevance</span><br><span class="val" style="color:var(--blue)">${relevance.toFixed(4)}</span></div>
+    </div>
+    ${surpriseBoost>0?'<div style="font-size:0.8rem;color:var(--green);margin-bottom:0.5rem">Surprise Index boost: +'+surpriseBoost.toFixed(3)+' (accessed more than predicted)</div>':''}
+    ${surprise>0.5?'<div style="font-size:0.8rem;color:var(--red);margin-bottom:0.5rem">WARNING: Surprise index '+surprise+' exceeds threshold (0.50). Cohort review triggered.</div>':''}
+    <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.3rem">Relevance = 0.30*sim + 0.25*S(t) + 0.20*haz_recency + 0.15*access_freq + 0.10*gof</div>
+    <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.75rem">= 0.30*${embSim.toFixed(2)} + 0.25*${adjustedS.toFixed(2)} + 0.20*${hazRecency.toFixed(2)} + 0.15*${accessFreq.toFixed(2)} + 0.10*${gof.toFixed(2)} = ${relevance.toFixed(4)}</div>
+    <div style="font-weight:600;font-size:0.85rem;margin-bottom:0.3rem">Distribution Formula:</div>
+    <div class="formula">${formula}</div>
+  `;
+}
+
+
+// ============================================================
+// LIFE TABLE
+// ============================================================
+function buildLifeTable(){
+  const type=document.getElementById('ltType').value;
+  const interval=parseInt(document.getElementById('ltInterval').value);
+  const mt=MEMORY_TYPES[type];
+  const tbody=document.getElementById('ltTbody');
+  tbody.innerHTML='';
+
+  const N0=1000;
+  let prevAlive=N0;
+
+  for(let age=0;age<=TMAX;age+=interval){
+    const S=mt.surv(age);
+    const alive=Math.round(N0*S);
+    const died=prevAlive-alive;
+    const q=prevAlive>0? died/prevAlive : 0;
+    const h=mt.haz(age);
+
+    let status='', statusColor='';
+    if(S>=0.25){status='Alive';statusColor='var(--green)';}
+    else if(S>=0.10){status='Moribund';statusColor='#e67e22';}
+    else{status='Deceased';statusColor='var(--red)';}
+
+    const row=document.createElement('tr');
+    row.innerHTML=`
+      <td>${age}-${age+interval}</td>
+      <td>${alive.toLocaleString()}</td>
+      <td>${Math.max(0,died).toLocaleString()}</td>
+      <td>${q.toFixed(4)}</td>
+      <td>${S.toFixed(4)}</td>
+      <td>${isFinite(h)?h.toFixed(5):'--'}</td>
+      <td style="color:${statusColor};font-weight:600">${status}</td>
+    `;
+    tbody.appendChild(row);
+    prevAlive=alive;
+    if(alive<=0) break;
+  }
+}
+
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('load',()=>{
+  renderGraveyard();
+  computeSurvival();
+  buildLifeTable();
+  drawSurvivalChart(0);
+  drawHazardChart(1);
+  // Start survival animation
+  setTimeout(()=>{animateSurvival();},300);
+  // Pre-populate hazard with two curves
+  hazardCurves.push({...MEMORY_TYPES.architectural, key:'architectural', id:1});
+  hazardCurves.push({...MEMORY_TYPES.bugfix, key:'bugfix', id:2});
+  hazAnimProgress=0;
+  animateHazard();
+});
+
+window.addEventListener('resize',()=>{
+  drawSurvivalChart(survAnimProgress);
+  if(hazardCurves.length>0) drawHazardChart(hazAnimProgress); else drawHazardChart(1);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Textile Morphology Lab -- Org 083</title>
+<style>
+  @import url('data:text/css,');
+  :root {
+    --bg-deep: #0d0d1a;
+    --bg-primary: #1a1a2e;
+    --bg-surface: #232340;
+    --bg-elevated: #2a2a4a;
+    --gold: #e6c200;
+    --gold-dim: #b89a00;
+    --gold-bright: #ffd700;
+    --blue-warp: #4a8ec9;
+    --blue-warp-light: #6ab0f0;
+    --gold-warp: #d4a017;
+    --green-warp: #4caf7d;
+    --weft-rose: #c75b7a;
+    --weft-coral: #e07850;
+    --weft-violet: #9b6ec7;
+    --weft-teal: #4db8a0;
+    --text-primary: #e8e6e1;
+    --text-secondary: #a0a0b0;
+    --text-dim: #6a6a7a;
+    --border: #3a3a5a;
+    --selvedge: #8b6914;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  code, .mono { font-family: 'Courier New', 'Consolas', monospace; }
+
+  /* Fabric texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(230,194,0,0.015) 3px, rgba(230,194,0,0.015) 4px),
+      repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(230,194,0,0.015) 3px, rgba(230,194,0,0.015) 4px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ---- HEADER ---- */
+  header {
+    position: relative;
+    padding: 60px 40px 40px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, var(--bg-deep) 0%, var(--bg-primary) 100%);
+  }
+  header .org-badge {
+    display: inline-block;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold);
+    border: 1px solid var(--gold-dim);
+    padding: 4px 16px;
+    margin-bottom: 20px;
+  }
+  header h1 {
+    font-size: 3em;
+    font-weight: 400;
+    letter-spacing: 2px;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+  }
+  header h1 span.accent { color: var(--gold); }
+  header .subtitle {
+    font-size: 1.1em;
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-bottom: 16px;
+  }
+  header .rank-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--gold-dim), var(--gold-bright));
+    color: var(--bg-deep);
+    font-weight: 700;
+    font-size: 14px;
+    padding: 6px 20px;
+    border-radius: 2px;
+    letter-spacing: 1px;
+  }
+  header .quote {
+    max-width: 700px;
+    margin: 24px auto 0;
+    font-style: italic;
+    color: var(--text-dim);
+    font-size: 0.95em;
+    line-height: 1.6;
+  }
+
+  /* ---- MAIN LAYOUT ---- */
+  .layout {
+    display: flex;
+    min-height: calc(100vh - 250px);
+    position: relative;
+    z-index: 1;
+  }
+  .sidebar {
+    width: 320px;
+    min-width: 320px;
+    border-right: 1px solid var(--border);
+    padding: 30px 24px;
+    background: var(--bg-primary);
+    overflow-y: auto;
+  }
+  .main-content {
+    flex: 1;
+    padding: 30px;
+    overflow-y: auto;
+  }
+
+  /* ---- SIDEBAR ---- */
+  .sidebar h3 {
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .score-display {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+  .score-big {
+    font-size: 4em;
+    font-weight: 300;
+    color: var(--gold-bright);
+    line-height: 1;
+  }
+  .score-big sup { font-size: 0.4em; color: var(--text-secondary); }
+  .score-label {
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .dimension {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(58,58,90,0.5);
+  }
+  .dimension:last-child { border-bottom: none; }
+  .dim-name {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    flex: 1;
+  }
+  .dim-bar-wrap {
+    width: 100px;
+    height: 6px;
+    background: var(--bg-deep);
+    border-radius: 3px;
+    margin: 0 10px;
+    overflow: hidden;
+  }
+  .dim-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 1s ease;
+  }
+  .dim-score {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85em;
+    color: var(--gold);
+    width: 28px;
+    text-align: right;
+  }
+
+  /* Team section */
+  .team-member {
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(58,58,90,0.4);
+  }
+  .team-member:last-child { border-bottom: none; }
+  .tm-name {
+    font-weight: 700;
+    font-size: 0.95em;
+    color: var(--text-primary);
+  }
+  .tm-role {
+    font-size: 0.8em;
+    color: var(--gold-dim);
+    font-family: 'Courier New', monospace;
+  }
+  .tm-desc {
+    font-size: 0.82em;
+    color: var(--text-dim);
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+
+  /* ---- LOOM SECTION ---- */
+  .loom-section {
+    margin-bottom: 40px;
+  }
+  .loom-section h2 {
+    font-size: 1.6em;
+    font-weight: 400;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+  }
+  .loom-section .section-desc {
+    color: var(--text-secondary);
+    font-size: 0.95em;
+    margin-bottom: 20px;
+    line-height: 1.6;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+    align-items: center;
+  }
+  .control-group {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .control-group label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-right: 4px;
+  }
+  .btn {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    letter-spacing: 1px;
+  }
+  .btn:hover {
+    border-color: var(--gold-dim);
+    color: var(--gold);
+    background: var(--bg-elevated);
+  }
+  .btn.active {
+    border-color: var(--gold);
+    color: var(--gold-bright);
+    background: rgba(230,194,0,0.1);
+  }
+  .btn-add {
+    border-color: var(--blue-warp);
+    color: var(--blue-warp-light);
+  }
+  .btn-add:hover {
+    background: rgba(74,142,201,0.15);
+    border-color: var(--blue-warp-light);
+  }
+  .btn-add-weft {
+    border-color: var(--weft-rose);
+    color: var(--weft-rose);
+  }
+  .btn-add-weft:hover {
+    background: rgba(199,91,122,0.15);
+    border-color: var(--weft-rose);
+  }
+
+  /* Canvas container */
+  .loom-canvas-wrap {
+    position: relative;
+    border: 1px solid var(--border);
+    background: var(--bg-deep);
+    overflow: hidden;
+    border-radius: 2px;
+  }
+  canvas#loom {
+    display: block;
+    width: 100%;
+    cursor: crosshair;
+  }
+
+  /* Tooltip */
+  .tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: var(--bg-elevated);
+    border: 1px solid var(--gold-dim);
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--text-primary);
+    max-width: 280px;
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    line-height: 1.5;
+  }
+  .tooltip.visible { opacity: 1; }
+  .tooltip .tt-label {
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .tooltip .tt-type {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 16px;
+    padding: 12px 0;
+    border-top: 1px solid var(--border);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+  }
+  .legend-swatch {
+    width: 20px;
+    height: 4px;
+    border-radius: 1px;
+  }
+
+  /* Pattern explanation */
+  .pattern-explain {
+    margin-top: 20px;
+    padding: 20px;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    border-radius: 2px;
+  }
+  .pattern-explain h4 {
+    font-size: 0.95em;
+    color: var(--gold);
+    margin-bottom: 8px;
+  }
+  .pattern-explain p {
+    font-size: 0.87em;
+    color: var(--text-secondary);
+    line-height: 1.7;
+  }
+  .pattern-explain .mono {
+    color: var(--gold-dim);
+  }
+
+  /* Concept overview */
+  .concept-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .concept-card {
+    padding: 20px;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    border-radius: 2px;
+  }
+  .concept-card h4 {
+    font-size: 0.9em;
+    color: var(--gold);
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .concept-card p {
+    font-size: 0.82em;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  /* Architecture section */
+  .arch-section {
+    margin-bottom: 40px;
+  }
+  .arch-section h2 {
+    font-size: 1.6em;
+    font-weight: 400;
+    color: var(--text-primary);
+    margin-bottom: 20px;
+  }
+  .crate-tree {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--text-secondary);
+    background: var(--bg-surface);
+    padding: 20px 24px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    white-space: pre;
+  }
+  .crate-tree .dir { color: var(--gold); }
+  .crate-tree .file { color: var(--text-dim); }
+  .crate-tree .comment { color: var(--text-dim); font-style: italic; }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    padding: 40px;
+    border-top: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 0.85em;
+    background: var(--bg-primary);
+    line-height: 1.6;
+  }
+  footer .gold { color: var(--gold-dim); }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .layout { flex-direction: column; }
+    .sidebar { width: 100%; min-width: auto; border-right: none; border-bottom: 1px solid var(--border); }
+    .concept-grid { grid-template-columns: 1fr; }
+    header h1 { font-size: 2em; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="org-badge">Org 083 &middot; Rank #1 &middot; Fashion Design / Computational Material Science</div>
+  <h1>The <span class="accent">Textile Morphology</span> Lab</h1>
+  <div class="subtitle">Structure is behavior. Change the weave and you change what the fabric can do.</div>
+  <div class="rank-badge">SCORE: 89.5 / 100</div>
+  <div class="quote">
+    "A thread by itself is nothing. Two threads crossed are a structure. Ten thousand threads interlaced
+    are a fabric that can hold the weight of a human body. Memory works the same way."
+    <br>-- Dr. Yuki Tanaka-Rhodes, Lab Director
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <h3>Scoring Breakdown</h3>
+    <div class="score-display">
+      <div class="score-big">89.5<sup>/100</sup></div>
+      <div class="score-label">Overall Score</div>
+    </div>
+    <div id="dimensions"></div>
+
+    <div style="margin-top: 30px;">
+      <h3>The Loom Roster</h3>
+      <div class="team-member">
+        <div class="tm-name">Dr. Yuki Tanaka-Rhodes</div>
+        <div class="tm-role">WARP &middot; Architect</div>
+        <div class="tm-desc">Sets the foundational structure. Polymer chemist turned codebase architect. Establishes persistent context and architectural constraints before any weaving begins.</div>
+      </div>
+      <div class="team-member">
+        <div class="tm-name">Sofia Marchetti</div>
+        <div class="tm-role">WEFT &middot; Patch Generator</div>
+        <div class="tm-desc">Runs the shuttle. Former Central Saint Martins designer who generates code changes in iterative passes -- rough draft, refinement, finishing.</div>
+      </div>
+      <div class="team-member">
+        <div class="tm-name">Kwame Osei</div>
+        <div class="tm-role">HEDDLE &middot; Memory Weaver</div>
+        <div class="tm-desc">Controls which warp threads lift for each weft pass. Selects plain, twill, or satin pattern based on task familiarity and token budget pressure.</div>
+      </div>
+      <div class="team-member">
+        <div class="tm-name">Erik Lindqvist</div>
+        <div class="tm-role">SELVEDGE &middot; Validator</div>
+        <div class="tm-desc">Inspects the finished edges. Ensures module boundaries, API contracts, and type integrity hold after every weaving cycle. Prevents fraying.</div>
+      </div>
+      <div class="team-member">
+        <div class="tm-name">Hana Nakamura</div>
+        <div class="tm-role">SHUTTLE &middot; Coordinator</div>
+        <div class="tm-desc">Carries the weft between looms. Manages cross-repo coordination, dependency tracking, and forge communication via PR comment protocols.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+
+    <!-- Interactive Loom -->
+    <div class="loom-section">
+      <h2>Interactive Loom</h2>
+      <p class="section-desc">
+        Warp threads (vertical) represent persistent memories. Weft threads (horizontal) represent task context.
+        Switch patterns to see how memory retrieval changes. Hover over intersections to inspect what surfaces.
+      </p>
+
+      <div class="controls">
+        <div class="control-group">
+          <label>Pattern:</label>
+          <button class="btn active" data-pattern="plain" onclick="setPattern('plain')">Plain</button>
+          <button class="btn" data-pattern="twill" onclick="setPattern('twill')">Twill</button>
+          <button class="btn" data-pattern="satin" onclick="setPattern('satin')">Satin</button>
+        </div>
+        <div class="control-group">
+          <label>Add:</label>
+          <button class="btn btn-add" onclick="addWarp()">+ Warp Thread</button>
+          <button class="btn btn-add-weft" onclick="addWeft()">+ Weft Thread</button>
+        </div>
+      </div>
+
+      <div class="loom-canvas-wrap">
+        <canvas id="loom"></canvas>
+        <div class="tooltip" id="tooltip"></div>
+      </div>
+
+      <div class="legend">
+        <div class="legend-item"><div class="legend-swatch" style="background:#4a8ec9"></div>Warp: Architecture</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#d4a017"></div>Warp: Convention</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#4caf7d"></div>Warp: Identity</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#c75b7a"></div>Weft: Current PR</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#e07850"></div>Weft: File Changes</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#9b6ec7"></div>Weft: Error Context</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#4db8a0"></div>Weft: Coordination</div>
+      </div>
+
+      <div class="pattern-explain" id="pattern-explain">
+        <h4 id="pe-title">Plain Weave -- Balanced Retrieval</h4>
+        <p id="pe-desc">
+          Every warp thread interacts with every weft thread: over-under-over-under.
+          This produces the densest possible memory surface. All persistent context is equally visible.
+          Best for <span class="mono">unfamiliar tasks</span> where any memory might be relevant.
+          Thread count visible: <span class="mono" id="pe-visible">100%</span> warp, <span class="mono">100%</span> weft.
+        </p>
+      </div>
+    </div>
+
+    <!-- Concepts -->
+    <div class="loom-section">
+      <h2>Woven Memory Architecture</h2>
+      <div class="concept-grid">
+        <div class="concept-card">
+          <h4>Warp Threads</h4>
+          <p>Long-term persistent context: project conventions, architecture decisions, team preferences.
+          Set before weaving begins. High-tension, structurally critical. TTL: 30 days, renewed on each interlacement.</p>
+        </div>
+        <div class="concept-card">
+          <h4>Weft Threads</h4>
+          <p>Task-specific context: current PR details, file changes, error messages, intermediate results.
+          Added with each shuttle pass. Archived on task completion. Recurring patterns promote to warp.</p>
+        </div>
+        <div class="concept-card">
+          <h4>Heddle Control (Osei)</h4>
+          <p>The switching mechanism that lifts warp threads to create patterns. Osei selects plain/twill/satin
+          based on task familiarity and budget pressure. At 80% budget, downgrades to plain. At 95%, halts the loom.</p>
+        </div>
+        <div class="concept-card">
+          <h4>Selvedge Boundaries</h4>
+          <p>Memory edges that prevent fraying between contexts. Lindqvist inspects module boundaries,
+          API contracts, and type integrity after every weaving cycle. Prevents cross-contamination.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Architecture -->
+    <div class="arch-section">
+      <h2>Plugin Architecture</h2>
+      <div class="crate-tree"><span class="dir">crates/but-ai/</span>
+  <span class="dir">src/</span>
+    lib.rs               <span class="comment">-- Core library</span>
+    <span class="dir">loom/</span>               <span class="comment">-- Memory weaving engine</span>
+      warp.rs            <span class="comment">-- Long-term context management</span>
+      weft.rs            <span class="comment">-- Task-specific context management</span>
+      pattern.rs         <span class="comment">-- Weave pattern selection</span>
+      heddle.rs          <span class="comment">-- Dynamic adjustment (Osei)</span>
+    <span class="dir">shuttle/</span>            <span class="comment">-- Cross-repo coordination</span>
+    <span class="dir">selvedge/</span>           <span class="comment">-- Validation and edge integrity</span>
+    <span class="dir">fabric/</span>             <span class="comment">-- Output: INDEX.patch + COMMIT.msg</span>
+  <span class="dir">bin/</span>
+    main.rs              <span class="comment">-- Binary entry point</span></div>
+    </div>
+
+    <!-- Token Budget -->
+    <div class="arch-section">
+      <h2>Token Budget</h2>
+      <p style="color: var(--text-secondary); margin-bottom: 16px; font-size: 0.92em; line-height: 1.6;">
+        Typical task: 200-line feature, 3 files, 2 cross-repo dependencies.
+        Total: <span style="color: var(--gold)">~34,400 tokens</span> (22,100 input + 12,300 output).
+        Twill and satin patterns reduce retrieval cost as the warp matures.
+      </p>
+      <div id="budget-bars"></div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <span class="gold">The Textile Morphology Lab</span> &middot; Org 083 &middot; Royal College of Art, London<br>
+  <span class="gold">Woven Memory</span> for the but-ai plugin &middot; Score: 89.5/100 &middot; Rank #1<br>
+  <span style="margin-top:8px; display:inline-block;">"The loom does not care what story the fabric tells. It cares that the threads interlace correctly,
+  that the tension is even, and that the selvedge holds."</span>
+</footer>
+
+<script>
+// ====== SCORING DATA ======
+const dimensions = [
+  { name: 'Memory Model', score: 19, max: 20, color: '#e6c200' },
+  { name: 'Plugin Architecture', score: 17, max: 20, color: '#4a8ec9' },
+  { name: 'Agent Design', score: 18, max: 20, color: '#4caf7d' },
+  { name: 'Cross-Repo Coord', score: 17.5, max: 20, color: '#c75b7a' },
+  { name: 'Security / Identity', score: 18, max: 20, color: '#9b6ec7' },
+];
+
+const dimContainer = document.getElementById('dimensions');
+dimensions.forEach(d => {
+  const pct = (d.score / d.max) * 100;
+  const div = document.createElement('div');
+  div.className = 'dimension';
+  div.innerHTML = `
+    <span class="dim-name">${d.name}</span>
+    <div class="dim-bar-wrap">
+      <div class="dim-bar" style="width:0%;background:${d.color};" data-target="${pct}"></div>
+    </div>
+    <span class="dim-score">${d.score}</span>
+  `;
+  dimContainer.appendChild(div);
+});
+
+// Animate bars
+setTimeout(() => {
+  document.querySelectorAll('.dim-bar').forEach(bar => {
+    bar.style.width = bar.dataset.target + '%';
+  });
+}, 200);
+
+// ====== TOKEN BUDGET ======
+const budgetData = [
+  { label: 'System prompt', input: 3200, output: 0 },
+  { label: 'Task ingestion', input: 1800, output: 400 },
+  { label: 'Warp setting (Tanaka)', input: 3000, output: 1500 },
+  { label: 'Pattern selection (Osei)', input: 1200, output: 600 },
+  { label: 'Shuttle passes (x3)', input: 3600, output: 5400 },
+  { label: 'Selvedge check', input: 1500, output: 800 },
+  { label: 'Memory ops', input: 1400, output: 1000 },
+  { label: 'Coordination', input: 1200, output: 700 },
+  { label: 'Commit', input: 400, output: 300 },
+];
+const maxTokens = 9000;
+const budgetContainer = document.getElementById('budget-bars');
+budgetData.forEach(b => {
+  const total = b.input + b.output;
+  const inputPct = (b.input / maxTokens) * 100;
+  const outputPct = (b.output / maxTokens) * 100;
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;align-items:center;margin-bottom:6px;';
+  row.innerHTML = `
+    <span style="width:170px;font-size:12px;color:var(--text-dim);font-family:Courier New,monospace;">${b.label}</span>
+    <div style="flex:1;height:8px;background:var(--bg-deep);border-radius:2px;overflow:hidden;display:flex;">
+      <div style="width:${inputPct}%;background:var(--blue-warp);"></div>
+      <div style="width:${outputPct}%;background:var(--gold-dim);"></div>
+    </div>
+    <span style="width:60px;text-align:right;font-size:11px;color:var(--text-dim);font-family:monospace;">${total.toLocaleString()}</span>
+  `;
+  budgetContainer.appendChild(row);
+});
+const legendRow = document.createElement('div');
+legendRow.style.cssText = 'display:flex;gap:16px;margin-top:10px;';
+legendRow.innerHTML = `
+  <span style="font-size:11px;color:var(--text-dim);display:flex;align-items:center;gap:4px;">
+    <span style="display:inline-block;width:12px;height:4px;background:var(--blue-warp);border-radius:1px;"></span>Input
+  </span>
+  <span style="font-size:11px;color:var(--text-dim);display:flex;align-items:center;gap:4px;">
+    <span style="display:inline-block;width:12px;height:4px;background:var(--gold-dim);border-radius:1px;"></span>Output
+  </span>
+`;
+budgetContainer.appendChild(legendRow);
+
+// ====== LOOM VISUALIZATION ======
+const canvas = document.getElementById('loom');
+const ctx = canvas.getContext('2d');
+const tooltip = document.getElementById('tooltip');
+
+const WARP_TYPES = [
+  { category: 'architecture', color: '#4a8ec9', colorDim: '#2a5a8a' },
+  { category: 'convention', color: '#d4a017', colorDim: '#8a6a0f' },
+  { category: 'identity', color: '#4caf7d', colorDim: '#2a7a4f' },
+];
+const WEFT_TYPES = [
+  { category: 'current-pr', color: '#c75b7a', colorDim: '#8a3a52' },
+  { category: 'file-changes', color: '#e07850', colorDim: '#9a4a2a' },
+  { category: 'error-context', color: '#9b6ec7', colorDim: '#6a4a8a' },
+  { category: 'coordination', color: '#4db8a0', colorDim: '#2a7a6a' },
+];
+
+const WARP_MEMORIES = {
+  architecture: [
+    'Module X uses middleware chain pattern',
+    'Auth layer wraps all /api routes',
+    'Event sourcing for state changes',
+    'Bounded contexts: user, billing, repo',
+    'CQRS separation in query handlers',
+    'Plugin discovery via PATH convention',
+  ],
+  convention: [
+    'Team uses snake_case for variables',
+    'Error messages include context object',
+    'Tests use London School (mock-first)',
+    'PR titles follow conventional commits',
+    'Max 500 lines per file',
+    'Input validation at system boundaries',
+  ],
+  identity: [
+    'Agent: marchetti -- patch generation',
+    'Org: 083-textile-morphology',
+    'Branch scope: weave/*, feat/*',
+    'Max patch: 800 lines',
+    'Signing: openwallet:083-textile',
+    'Loom position: weft runner',
+  ],
+};
+const WEFT_MEMORIES = {
+  'current-pr': [
+    'PR #142: add session token validation',
+    'PR #98: refactor auth middleware',
+    'PR #203: fix race condition in cache',
+    'PR #67: add rate limiting to API',
+  ],
+  'file-changes': [
+    'Modified: src/auth/middleware.rs +45/-12',
+    'Added: src/auth/session.rs (new file)',
+    'Modified: tests/auth_test.rs +30/-5',
+    'Deleted: src/legacy/old_auth.rs',
+  ],
+  'error-context': [
+    'TypeError: expected &str, found String',
+    'Compile error: unused variable `ctx`',
+    'Test failure: auth_middleware_test::test_chain',
+    'Warning: deprecated API in gix_path',
+  ],
+  'coordination': [
+    'Dependency: owner/auth-lib#42 (merged)',
+    'Blocked by: owner/core#87 (in review)',
+    'Shuttle msg from repo-b: handoff ready',
+    'Cut plan: assemble after #42 + #87',
+  ],
+};
+
+// Loom state
+let warpThreads = [];
+let weftThreads = [];
+let currentPattern = 'plain';
+let animPhase = 0;
+let hoverCell = null;
+
+// Thread spacing and sizing
+const MARGIN_LEFT = 70;
+const MARGIN_TOP = 50;
+const THREAD_SPACING = 28;
+const THREAD_WIDTH = 6;
+const SELVEDGE_WIDTH = 12;
+
+function initThreads() {
+  warpThreads = [];
+  weftThreads = [];
+  // Initial warp threads
+  const cats = ['architecture','architecture','convention','convention','identity','architecture','convention','identity'];
+  cats.forEach((cat, i) => {
+    const type = WARP_TYPES.find(t => t.category === cat);
+    const mems = WARP_MEMORIES[cat];
+    warpThreads.push({
+      id: `warp-${i}`,
+      category: cat,
+      color: type.color,
+      colorDim: type.colorDim,
+      memory: mems[i % mems.length],
+      tension: 0.6 + Math.random() * 0.35,
+    });
+  });
+  // Initial weft threads
+  const weftCats = ['current-pr','file-changes','error-context','file-changes','coordination','current-pr'];
+  weftCats.forEach((cat, i) => {
+    const type = WEFT_TYPES.find(t => t.category === cat);
+    const mems = WEFT_MEMORIES[cat];
+    weftThreads.push({
+      id: `weft-${i}`,
+      category: cat,
+      color: type.color,
+      colorDim: type.colorDim,
+      memory: mems[i % mems.length],
+    });
+  });
+}
+
+function resizeCanvas() {
+  const wrap = canvas.parentElement;
+  const w = wrap.clientWidth;
+  const neededW = MARGIN_LEFT + warpThreads.length * THREAD_SPACING + 60;
+  const neededH = MARGIN_TOP + weftThreads.length * THREAD_SPACING + 60;
+  const cw = Math.max(w, neededW);
+  const ch = Math.max(320, neededH);
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = cw * dpr;
+  canvas.height = ch * dpr;
+  canvas.style.width = cw + 'px';
+  canvas.style.height = ch + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+// Weave patterns: returns true if warp is ON TOP at (warpIdx, weftIdx)
+function isWarpOnTop(wi, fi) {
+  if (currentPattern === 'plain') {
+    return (wi + fi) % 2 === 0;
+  } else if (currentPattern === 'twill') {
+    return ((wi + fi * 2) % 4) < 2;
+  } else { // satin
+    return ((wi * 3 + fi) % 5) === 0;
+  }
+}
+
+function draw() {
+  const w = canvas.width / (window.devicePixelRatio || 1);
+  const h = canvas.height / (window.devicePixelRatio || 1);
+  ctx.clearRect(0, 0, w, h);
+
+  // Background
+  ctx.fillStyle = '#0d0d1a';
+  ctx.fillRect(0, 0, w, h);
+
+  // Subtle grid
+  ctx.strokeStyle = 'rgba(58,58,90,0.2)';
+  ctx.lineWidth = 0.5;
+  warpThreads.forEach((_, i) => {
+    const x = MARGIN_LEFT + i * THREAD_SPACING + THREAD_SPACING / 2;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, h);
+    ctx.stroke();
+  });
+  weftThreads.forEach((_, i) => {
+    const y = MARGIN_TOP + i * THREAD_SPACING + THREAD_SPACING / 2;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  });
+
+  // Left selvedge
+  const selvedgeX = MARGIN_LEFT - SELVEDGE_WIDTH - 8;
+  const selvedgeTop = MARGIN_TOP;
+  const selvedgeBottom = MARGIN_TOP + weftThreads.length * THREAD_SPACING;
+  const selvedgeGrad = ctx.createLinearGradient(selvedgeX, 0, selvedgeX + SELVEDGE_WIDTH, 0);
+  selvedgeGrad.addColorStop(0, 'rgba(139,105,20,0.1)');
+  selvedgeGrad.addColorStop(0.5, 'rgba(139,105,20,0.25)');
+  selvedgeGrad.addColorStop(1, 'rgba(139,105,20,0.1)');
+  ctx.fillStyle = selvedgeGrad;
+  ctx.fillRect(selvedgeX, selvedgeTop, SELVEDGE_WIDTH, selvedgeBottom - selvedgeTop);
+  // Selvedge label
+  ctx.save();
+  ctx.translate(selvedgeX + SELVEDGE_WIDTH / 2, (selvedgeTop + selvedgeBottom) / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = 'rgba(139,105,20,0.5)';
+  ctx.font = '9px "Courier New", monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('SELVEDGE', 0, 3);
+  ctx.restore();
+
+  // Right selvedge
+  const rSelvedgeX = MARGIN_LEFT + warpThreads.length * THREAD_SPACING + 8;
+  ctx.fillStyle = selvedgeGrad;
+  ctx.fillRect(rSelvedgeX, selvedgeTop, SELVEDGE_WIDTH, selvedgeBottom - selvedgeTop);
+  ctx.save();
+  ctx.translate(rSelvedgeX + SELVEDGE_WIDTH / 2, (selvedgeTop + selvedgeBottom) / 2);
+  ctx.rotate(Math.PI / 2);
+  ctx.fillStyle = 'rgba(139,105,20,0.5)';
+  ctx.font = '9px "Courier New", monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('SELVEDGE', 0, 3);
+  ctx.restore();
+
+  // Warp labels (top)
+  ctx.font = '9px "Courier New", monospace';
+  ctx.textAlign = 'center';
+  warpThreads.forEach((wt, i) => {
+    const x = MARGIN_LEFT + i * THREAD_SPACING + THREAD_SPACING / 2;
+    ctx.fillStyle = wt.color;
+    ctx.globalAlpha = 0.7;
+    ctx.fillText(wt.category.charAt(0).toUpperCase(), x, MARGIN_TOP - 10);
+    // Tension indicator
+    const tensionH = wt.tension * 6;
+    ctx.fillStyle = wt.color;
+    ctx.globalAlpha = 0.3;
+    ctx.fillRect(x - 2, MARGIN_TOP - 8 - tensionH, 4, tensionH);
+    ctx.globalAlpha = 1;
+  });
+
+  // Weft labels (left)
+  ctx.textAlign = 'right';
+  weftThreads.forEach((ft, i) => {
+    const y = MARGIN_TOP + i * THREAD_SPACING + THREAD_SPACING / 2;
+    ctx.fillStyle = ft.color;
+    ctx.globalAlpha = 0.7;
+    ctx.font = '9px "Courier New", monospace';
+    const label = ft.category.split('-').map(w => w.charAt(0).toUpperCase()).join('');
+    ctx.fillText(label, MARGIN_LEFT - SELVEDGE_WIDTH - 14, y + 3);
+    ctx.globalAlpha = 1;
+  });
+
+  // Draw threads: first pass draws threads that go UNDER, second pass draws threads on top
+  // We draw per-intersection for correct over/under appearance.
+
+  // Draw weft threads (full horizontal lines as base)
+  weftThreads.forEach((ft, fi) => {
+    const y = MARGIN_TOP + fi * THREAD_SPACING + THREAD_SPACING / 2;
+    // Draw segments where weft is UNDER (behind warp)
+    warpThreads.forEach((wt, wi) => {
+      const x = MARGIN_LEFT + wi * THREAD_SPACING + THREAD_SPACING / 2;
+      const onTop = isWarpOnTop(wi, fi);
+      if (onTop) {
+        // Weft is under here -- draw dimmed
+        ctx.strokeStyle = ft.colorDim;
+        ctx.lineWidth = THREAD_WIDTH - 1;
+        ctx.globalAlpha = 0.4;
+        ctx.beginPath();
+        ctx.moveTo(x - THREAD_SPACING / 2, y);
+        ctx.lineTo(x + THREAD_SPACING / 2, y);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    });
+  });
+
+  // Draw warp threads (full vertical lines)
+  warpThreads.forEach((wt, wi) => {
+    const x = MARGIN_LEFT + wi * THREAD_SPACING + THREAD_SPACING / 2;
+    weftThreads.forEach((ft, fi) => {
+      const y = MARGIN_TOP + fi * THREAD_SPACING + THREAD_SPACING / 2;
+      const onTop = isWarpOnTop(wi, fi);
+      if (onTop) {
+        // Warp is on top -- draw bright
+        ctx.strokeStyle = wt.color;
+        ctx.lineWidth = THREAD_WIDTH;
+        ctx.globalAlpha = 0.9;
+        ctx.beginPath();
+        ctx.moveTo(x, y - THREAD_SPACING / 2);
+        ctx.lineTo(x, y + THREAD_SPACING / 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      } else {
+        // Warp is under -- draw dimmed
+        ctx.strokeStyle = wt.colorDim;
+        ctx.lineWidth = THREAD_WIDTH - 1;
+        ctx.globalAlpha = 0.35;
+        ctx.beginPath();
+        ctx.moveTo(x, y - THREAD_SPACING / 2);
+        ctx.lineTo(x, y + THREAD_SPACING / 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    });
+  });
+
+  // Draw weft on-top segments over warp
+  weftThreads.forEach((ft, fi) => {
+    const y = MARGIN_TOP + fi * THREAD_SPACING + THREAD_SPACING / 2;
+    warpThreads.forEach((wt, wi) => {
+      const x = MARGIN_LEFT + wi * THREAD_SPACING + THREAD_SPACING / 2;
+      const onTop = isWarpOnTop(wi, fi);
+      if (!onTop) {
+        // Weft is on top here
+        ctx.strokeStyle = ft.color;
+        ctx.lineWidth = THREAD_WIDTH;
+        ctx.globalAlpha = 0.9;
+        ctx.beginPath();
+        ctx.moveTo(x - THREAD_SPACING / 2, y);
+        ctx.lineTo(x + THREAD_SPACING / 2, y);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    });
+  });
+
+  // Intersection highlights
+  warpThreads.forEach((wt, wi) => {
+    weftThreads.forEach((ft, fi) => {
+      const x = MARGIN_LEFT + wi * THREAD_SPACING + THREAD_SPACING / 2;
+      const y = MARGIN_TOP + fi * THREAD_SPACING + THREAD_SPACING / 2;
+      const onTop = isWarpOnTop(wi, fi);
+
+      // Highlight interlacement point
+      const topColor = onTop ? wt.color : ft.color;
+      ctx.fillStyle = topColor;
+      ctx.globalAlpha = 0.15 + Math.sin(animPhase + wi * 0.3 + fi * 0.5) * 0.08;
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // Hover highlight
+      if (hoverCell && hoverCell.wi === wi && hoverCell.fi === fi) {
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.8;
+        ctx.beginPath();
+        ctx.arc(x, y, 8, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    });
+  });
+
+  // Pattern label
+  ctx.fillStyle = 'rgba(230,194,0,0.3)';
+  ctx.font = '10px "Courier New", monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(currentPattern.toUpperCase() + ' WEAVE', MARGIN_LEFT, h - 12);
+
+  animPhase += 0.02;
+  requestAnimationFrame(draw);
+}
+
+// Mouse interaction
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  let found = false;
+  warpThreads.forEach((wt, wi) => {
+    weftThreads.forEach((ft, fi) => {
+      const x = MARGIN_LEFT + wi * THREAD_SPACING + THREAD_SPACING / 2;
+      const y = MARGIN_TOP + fi * THREAD_SPACING + THREAD_SPACING / 2;
+      const dist = Math.sqrt((mx - x) ** 2 + (my - y) ** 2);
+      if (dist < THREAD_SPACING / 2) {
+        hoverCell = { wi, fi };
+        const onTop = isWarpOnTop(wi, fi);
+        const surfacing = onTop ? 'warp' : 'weft';
+        const surfaceThread = onTop ? wt : ft;
+        const hiddenThread = onTop ? ft : wt;
+
+        tooltip.innerHTML = `
+          <div class="tt-label">${surfacing === 'warp' ? 'WARP SURFACES' : 'WEFT SURFACES'}</div>
+          <div style="margin:4px 0;color:${surfaceThread.color};">${surfacing === 'warp' ? wt.memory : ft.memory}</div>
+          <div class="tt-type">Category: ${surfaceThread.category}</div>
+          <div style="margin-top:6px;border-top:1px solid rgba(58,58,90,0.5);padding-top:6px;">
+            <span class="tt-label" style="color:var(--text-dim);">${surfacing === 'warp' ? 'WEFT (UNDER)' : 'WARP (UNDER)'}</span>
+            <div style="color:${hiddenThread.colorDim};font-size:11px;">${surfacing === 'warp' ? ft.memory : wt.memory}</div>
+          </div>
+          ${onTop && currentPattern !== 'plain' ? '<div style="margin-top:4px;font-size:10px;color:var(--gold-dim);">Tension: ' + wt.tension.toFixed(2) + '</div>' : ''}
+        `;
+        tooltip.style.left = Math.min(mx + 16, canvas.clientWidth - 290) + 'px';
+        tooltip.style.top = (my + 16) + 'px';
+        tooltip.classList.add('visible');
+        found = true;
+      }
+    });
+  });
+  if (!found) {
+    hoverCell = null;
+    tooltip.classList.remove('visible');
+  }
+});
+
+canvas.addEventListener('mouseleave', () => {
+  hoverCell = null;
+  tooltip.classList.remove('visible');
+});
+
+// Pattern switching
+function setPattern(p) {
+  currentPattern = p;
+  document.querySelectorAll('[data-pattern]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.pattern === p);
+  });
+
+  const title = document.getElementById('pe-title');
+  const desc = document.getElementById('pe-desc');
+  const vis = document.getElementById('pe-visible');
+
+  if (p === 'plain') {
+    title.textContent = 'Plain Weave -- Balanced Retrieval';
+    desc.innerHTML = 'Every warp thread interacts with every weft thread: over-under-over-under. This produces the densest possible memory surface. All persistent context is equally visible. Best for <span class="mono">unfamiliar tasks</span> where any memory might be relevant. Thread count visible: <span class="mono">100%</span> warp, <span class="mono">100%</span> weft.';
+  } else if (p === 'twill') {
+    title.textContent = 'Twill Weave -- Warp Dominant';
+    desc.innerHTML = 'Weft threads skip some warp threads, creating diagonal lines. Long-term memory dominates: architecture decisions, coding conventions, and project identity surface more frequently. Best for <span class="mono">familiar tasks</span> where prior knowledge guides execution. Thread visibility: <span class="mono">~65%</span> warp, <span class="mono">~35%</span> weft.';
+  } else {
+    title.textContent = 'Satin Weave -- Weft Dominant';
+    desc.innerHTML = 'Long "floats" where the weft rides over many warp threads. Task-specific context dominates the surface. Only the most critical warp threads (highest tension) break through. Best for <span class="mono">novel tasks</span> where fresh context matters more than history. Thread visibility: <span class="mono">~20%</span> warp, <span class="mono">~80%</span> weft.';
+  }
+}
+
+// Add threads
+function addWarp() {
+  const cats = Object.keys(WARP_MEMORIES);
+  const cat = cats[Math.floor(Math.random() * cats.length)];
+  const type = WARP_TYPES.find(t => t.category === cat);
+  const mems = WARP_MEMORIES[cat];
+  if (warpThreads.length >= 16) return; // limit
+  warpThreads.push({
+    id: `warp-${warpThreads.length}`,
+    category: cat,
+    color: type.color,
+    colorDim: type.colorDim,
+    memory: mems[Math.floor(Math.random() * mems.length)],
+    tension: 0.5 + Math.random() * 0.45,
+  });
+  resizeCanvas();
+}
+
+function addWeft() {
+  const cats = Object.keys(WEFT_MEMORIES);
+  const cat = cats[Math.floor(Math.random() * cats.length)];
+  const type = WEFT_TYPES.find(t => t.category === cat);
+  const mems = WEFT_MEMORIES[cat];
+  if (weftThreads.length >= 12) return; // limit
+  weftThreads.push({
+    id: `weft-${weftThreads.length}`,
+    category: cat,
+    color: type.color,
+    colorDim: type.colorDim,
+    memory: mems[Math.floor(Math.random() * mems.length)],
+  });
+  resizeCanvas();
+}
+
+// Init
+initThreads();
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+draw();
+</script>
+
+</body>
+</html>

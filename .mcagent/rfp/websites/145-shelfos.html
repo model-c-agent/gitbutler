@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShelfOS -- Card-Catalog Memory for but-ai</title>
+<style>
+/* ── Reset & Base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+
+/* ── Paper Texture & Library Palette ── */
+:root{
+  --cream:#f5e6c8;--wood:#8b6914;--wood-dark:#6b4f10;--wood-light:#c4a24e;
+  --green:#2d5a27;--green-dark:#1e3d1a;--green-light:#4a8a42;
+  --card:#fff8f0;--card-shadow:rgba(80,50,10,.18);
+  --ink:#2c1810;--ink-light:#5a3d2b;--stamp:#8b2500;
+  --brass:#b8860b;--brass-light:#daa520;
+  --receipt-bg:#fffff0;
+}
+body{
+  font-family:'Georgia','Times New Roman',serif;
+  background:var(--cream);
+  color:var(--ink);
+  line-height:1.6;
+  overflow-x:hidden;
+  background-image:url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+}
+
+/* ── Typography ── */
+.typewriter{font-family:'Courier New',Courier,monospace}
+.sans{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif}
+h1,h2,h3{font-family:'Georgia',serif;color:var(--ink)}
+
+/* ── Header ── */
+.header{
+  background:linear-gradient(180deg,var(--green-dark) 0%,var(--green) 100%);
+  color:var(--card);padding:2.5rem 2rem 2rem;text-align:center;
+  border-bottom:6px solid var(--wood);position:relative;
+}
+.header::after{
+  content:'';position:absolute;bottom:-6px;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,transparent,var(--brass-light),transparent);
+}
+.header h1{font-size:2.8rem;letter-spacing:.12em;margin-bottom:.3rem;text-shadow:0 2px 4px rgba(0,0,0,.3)}
+.header .tagline{font-style:italic;opacity:.88;font-size:1.15rem;margin-bottom:.5rem}
+.header .org-badge{
+  display:inline-block;background:var(--wood);color:var(--card);
+  padding:.25rem 1rem;border-radius:3px;font-size:.85rem;margin-top:.5rem;
+  font-family:'Segoe UI',sans-serif;letter-spacing:.05em;
+}
+
+/* ── Nav ── */
+.nav{
+  background:var(--wood-dark);display:flex;flex-wrap:wrap;justify-content:center;
+  gap:0;border-bottom:3px solid var(--brass);position:sticky;top:0;z-index:100;
+}
+.nav a{
+  color:var(--cream);text-decoration:none;padding:.75rem 1.4rem;font-size:.95rem;
+  font-family:'Segoe UI',sans-serif;transition:background .2s;letter-spacing:.02em;
+}
+.nav a:hover,.nav a.active{background:var(--green-dark)}
+
+/* ── Sections ── */
+section{padding:3rem 2rem;max-width:1200px;margin:0 auto}
+section h2{
+  font-size:1.8rem;margin-bottom:1.5rem;padding-bottom:.5rem;
+  border-bottom:2px solid var(--wood-light);color:var(--green-dark);
+}
+
+/* ── 1. Card Catalog ── */
+.catalog-cabinet{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+  gap:1rem;perspective:800px;
+}
+.drawer{
+  background:linear-gradient(135deg,#c4953a 0%,#a07828 50%,#8b6914 100%);
+  border:2px solid var(--wood-dark);border-radius:4px;
+  height:110px;cursor:pointer;position:relative;
+  transition:transform .3s,box-shadow .3s;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 3px 8px rgba(0,0,0,.2);
+}
+.drawer:hover{transform:translateY(-3px) scale(1.02);box-shadow:0 6px 16px rgba(0,0,0,.25)}
+.drawer.open{transform:translateZ(30px) rotateX(-3deg);box-shadow:0 8px 20px rgba(0,0,0,.3)}
+.drawer-label{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:var(--card);border:1px solid var(--wood-dark);border-radius:2px;
+  padding:.2rem .6rem;font-size:.75rem;font-family:'Courier New',monospace;
+  color:var(--ink);text-align:center;white-space:nowrap;
+  box-shadow:0 1px 2px rgba(0,0,0,.15);
+}
+.drawer-handle{
+  position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+  width:28px;height:8px;background:var(--brass);border-radius:4px;
+  box-shadow:0 1px 2px rgba(0,0,0,.3),inset 0 1px 0 var(--brass-light);
+}
+.drawer-count{
+  position:absolute;top:6px;right:8px;font-size:.65rem;
+  color:var(--card);opacity:.7;font-family:'Segoe UI',sans-serif;
+}
+
+/* Card Tray (expanded drawer) */
+.card-tray{
+  display:none;background:var(--card);border:2px solid var(--wood);
+  border-radius:6px;padding:1rem;margin-top:.5rem;
+  box-shadow:inset 0 2px 8px rgba(139,105,20,.12),0 4px 12px var(--card-shadow);
+  max-height:400px;overflow-y:auto;
+}
+.card-tray.visible{display:block;animation:traySlide .3s ease-out}
+@keyframes traySlide{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+
+.catalog-card{
+  background:var(--card);border:1px solid #d4c4a0;border-left:4px solid var(--green);
+  padding:.8rem 1rem;margin-bottom:.6rem;border-radius:3px;cursor:pointer;
+  transition:transform .2s,box-shadow .2s;position:relative;
+  font-family:'Courier New',monospace;font-size:.85rem;
+}
+.catalog-card:hover{transform:translateX(4px);box-shadow:2px 2px 8px var(--card-shadow)}
+.catalog-card.expanded{
+  border-left-width:6px;background:#fffdf5;
+  box-shadow:3px 3px 12px var(--card-shadow);
+}
+.catalog-card .call-number{color:var(--stamp);font-weight:bold;font-size:.8rem;margin-bottom:.3rem}
+.catalog-card .subject-line{font-style:italic;color:var(--ink-light);margin-bottom:.3rem;font-size:.82rem}
+.catalog-card .content-preview{color:var(--ink);line-height:1.5}
+.catalog-card .card-meta{
+  display:none;margin-top:.6rem;padding-top:.6rem;border-top:1px dashed #c4a24e;
+  font-size:.78rem;color:var(--ink-light);
+}
+.catalog-card.expanded .card-meta{display:block}
+.card-meta .classification-row{display:flex;gap:.8rem;flex-wrap:wrap;margin-bottom:.3rem}
+.card-meta .tag{
+  background:var(--green);color:var(--card);padding:.1rem .4rem;border-radius:2px;
+  font-size:.7rem;
+}
+.card-meta .tag.source{background:var(--wood)}
+.card-meta .tag.temporal{background:var(--stamp)}
+.card-meta .tag.see-also{background:#4a6fa5}
+
+/* ── 2. Search ── */
+.search-section{background:var(--green-dark);padding:2rem;border-radius:8px;margin-bottom:2rem}
+.search-section h2{color:var(--card);border-bottom-color:var(--green-light)}
+.search-bar{
+  display:flex;gap:.5rem;margin-bottom:1rem;
+}
+.search-bar input{
+  flex:1;padding:.8rem 1rem;font-size:1rem;border:2px solid var(--brass);
+  border-radius:4px;background:var(--card);font-family:'Courier New',monospace;
+  color:var(--ink);outline:none;
+}
+.search-bar input:focus{border-color:var(--brass-light);box-shadow:0 0 8px rgba(218,165,32,.3)}
+.search-bar button{
+  padding:.8rem 1.5rem;background:var(--brass);color:var(--card);border:none;
+  border-radius:4px;font-family:'Georgia',serif;font-size:1rem;cursor:pointer;
+  transition:background .2s;
+}
+.search-bar button:hover{background:var(--brass-light)}
+.search-results{color:var(--card)}
+.search-result{
+  background:rgba(255,248,240,.1);border:1px solid rgba(255,248,240,.2);
+  border-left:4px solid var(--brass-light);
+  padding:.8rem 1rem;margin-bottom:.5rem;border-radius:3px;
+  animation:resultSlide .3s ease-out;
+}
+@keyframes resultSlide{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+.search-result .match-type{
+  display:inline-block;font-size:.7rem;padding:.1rem .5rem;border-radius:2px;
+  margin-right:.5rem;font-family:'Segoe UI',sans-serif;
+}
+.match-subject{background:#4a8a42;color:white}
+.match-source{background:var(--wood);color:white}
+.match-temporal{background:var(--stamp);color:white}
+.match-seealso{background:#4a6fa5;color:white}
+.match-callnumber{background:var(--brass);color:white}
+
+/* ── 3. See-Also Graph ── */
+.graph-container{
+  background:var(--card);border:2px solid var(--wood);border-radius:8px;
+  position:relative;overflow:hidden;
+  box-shadow:inset 0 2px 8px rgba(139,105,20,.1);
+}
+.graph-container canvas{display:block;width:100%;cursor:grab}
+.graph-container canvas:active{cursor:grabbing}
+.graph-legend{
+  position:absolute;top:12px;right:12px;background:rgba(255,248,240,.92);
+  padding:.6rem .8rem;border-radius:4px;border:1px solid var(--wood-light);
+  font-size:.75rem;font-family:'Segoe UI',sans-serif;
+}
+.graph-legend div{display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem}
+.graph-legend .dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.node-tooltip{
+  position:absolute;display:none;background:var(--card);
+  border:2px solid var(--green);border-radius:6px;padding:.8rem;
+  box-shadow:0 4px 12px var(--card-shadow);max-width:280px;
+  font-size:.82rem;font-family:'Courier New',monospace;z-index:10;
+  pointer-events:none;
+}
+
+/* ── 4. Circulation Desk ── */
+.circ-desk{
+  background:linear-gradient(180deg,#f0e0c0 0%,#e8d4b0 100%);
+  border:3px solid var(--wood);border-radius:8px;padding:2rem;
+  position:relative;
+}
+.circ-desk-header{
+  display:flex;align-items:center;gap:1.5rem;margin-bottom:1.5rem;
+}
+.librarian-avatar{
+  width:80px;height:80px;border-radius:50%;border:3px solid var(--green);
+  background:var(--green-light);display:flex;align-items:center;justify-content:center;
+  font-size:2.2rem;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.15);
+}
+.circ-queue{display:flex;flex-direction:column;gap:.6rem}
+.circ-item{
+  display:flex;align-items:center;gap:1rem;background:var(--card);
+  border:1px solid #d4c4a0;border-radius:4px;padding:.6rem 1rem;
+  transition:all .3s;
+}
+.circ-item .status-badge{
+  display:inline-block;padding:.15rem .6rem;border-radius:3px;font-size:.75rem;
+  font-family:'Segoe UI',sans-serif;font-weight:600;white-space:nowrap;
+}
+.status-checked-out{background:#c0392b;color:white}
+.status-checked-in{background:var(--green);color:white}
+.status-on-hold{background:var(--brass);color:white}
+.status-available{background:#7f8c8d;color:white}
+.circ-item .item-title{font-family:'Courier New',monospace;font-size:.88rem;flex:1}
+.circ-item .circ-btn{
+  padding:.3rem .7rem;border:1px solid var(--green);background:transparent;
+  color:var(--green);border-radius:3px;font-size:.78rem;cursor:pointer;
+  font-family:'Segoe UI',sans-serif;transition:all .2s;
+}
+.circ-item .circ-btn:hover{background:var(--green);color:white}
+.circ-speech{
+  background:var(--card);border:2px solid var(--green);border-radius:12px;
+  padding:.8rem 1.2rem;position:relative;font-style:italic;font-size:.95rem;
+  margin-bottom:1rem;
+}
+.circ-speech::before{
+  content:'';position:absolute;left:20px;bottom:-10px;
+  border:10px solid transparent;border-top-color:var(--green);
+}
+
+/* ── 5. The Stacks ── */
+.stacks-wrapper{
+  overflow-x:auto;padding-bottom:1rem;
+  scrollbar-width:thin;scrollbar-color:var(--wood) var(--cream);
+}
+.stacks-shelf{
+  display:flex;gap:4px;min-width:max-content;padding:1rem 0;
+  align-items:flex-end;
+  background:linear-gradient(0deg,var(--wood) 0%,var(--wood) 20px,transparent 20px);
+  padding-bottom:20px;position:relative;
+}
+.stacks-shelf::before,.stacks-shelf::after{
+  content:'';position:absolute;bottom:0;height:24px;width:12px;
+  background:var(--wood-dark);border-radius:2px 2px 0 0;
+}
+.stacks-shelf::before{left:-4px}
+.stacks-shelf::after{right:-4px}
+.book-spine{
+  width:28px;min-height:120px;cursor:pointer;position:relative;
+  border-radius:2px 4px 4px 2px;transition:transform .3s,box-shadow .3s;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:inset -2px 0 4px rgba(0,0,0,.15),1px 0 2px rgba(0,0,0,.1);
+}
+.book-spine:hover{transform:translateY(-10px) rotate(-2deg);box-shadow:0 8px 16px rgba(0,0,0,.2);z-index:5}
+.book-spine.pulled{
+  transform:translateY(-40px) rotate(-5deg) scale(1.1);
+  box-shadow:0 12px 24px rgba(0,0,0,.3);z-index:10;
+}
+.book-spine .spine-text{
+  writing-mode:vertical-rl;text-orientation:mixed;
+  font-size:.6rem;font-family:'Courier New',monospace;color:white;
+  text-shadow:0 1px 1px rgba(0,0,0,.3);white-space:nowrap;
+  overflow:hidden;max-height:90%;
+}
+.book-popup{
+  display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:var(--card);border:3px solid var(--wood);border-radius:8px;
+  padding:1.5rem;max-width:420px;width:90%;z-index:200;
+  box-shadow:0 12px 40px rgba(0,0,0,.35);
+  font-family:'Courier New',monospace;font-size:.88rem;
+}
+.book-popup.visible{display:block;animation:popIn .25s ease-out}
+@keyframes popIn{from{opacity:0;transform:translate(-50%,-50%) scale(.9)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+.book-popup .close-btn{
+  position:absolute;top:8px;right:12px;background:none;border:none;
+  font-size:1.2rem;cursor:pointer;color:var(--ink-light);
+}
+.book-overlay{
+  display:none;position:fixed;top:0;left:0;right:0;bottom:0;
+  background:rgba(44,24,16,.5);z-index:199;
+}
+.book-overlay.visible{display:block}
+
+/* ── 6. Scoring Receipt ── */
+.receipt{
+  background:var(--receipt-bg);max-width:380px;margin:0 auto;
+  padding:2rem 1.5rem;border:1px dashed #999;
+  font-family:'Courier New',monospace;font-size:.88rem;
+  box-shadow:0 2px 8px rgba(0,0,0,.08);position:relative;
+}
+.receipt::before,.receipt::after{
+  content:'';position:absolute;left:0;right:0;height:12px;
+  background:repeating-linear-gradient(90deg,transparent,transparent 4px,var(--receipt-bg) 4px,var(--receipt-bg) 8px);
+}
+.receipt::before{top:-12px}
+.receipt::after{bottom:-12px}
+.receipt h3{text-align:center;margin-bottom:.8rem;letter-spacing:.15em}
+.receipt .line{display:flex;justify-content:space-between;padding:.2rem 0}
+.receipt .line.total{border-top:2px solid var(--ink);margin-top:.5rem;padding-top:.5rem;font-weight:bold}
+.receipt .separator{border-top:1px dashed #999;margin:.6rem 0}
+.receipt .barcode{
+  text-align:center;margin-top:1rem;font-size:.6rem;letter-spacing:.25em;color:#999;
+}
+
+/* ── Concept Cards ── */
+.concept-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:1.2rem;margin-top:1.5rem;
+}
+.concept-card{
+  background:var(--card);border:2px solid var(--wood-light);border-radius:6px;
+  padding:1.2rem;transition:transform .2s,box-shadow .2s;
+}
+.concept-card:hover{transform:translateY(-3px);box-shadow:0 6px 16px var(--card-shadow)}
+.concept-card h3{color:var(--green-dark);font-size:1.1rem;margin-bottom:.5rem}
+.concept-card .metaphor{font-style:italic;color:var(--stamp);font-size:.85rem;margin-bottom:.4rem}
+.concept-card p{font-size:.9rem;color:var(--ink-light)}
+
+/* ── Team ── */
+.team-grid{display:flex;flex-wrap:wrap;gap:1.5rem;justify-content:center}
+.team-member{
+  background:var(--card);border:2px solid var(--wood-light);border-radius:8px;
+  padding:1.5rem;width:300px;text-align:center;
+}
+.team-member .avatar{
+  width:64px;height:64px;border-radius:50%;margin:0 auto .8rem;
+  display:flex;align-items:center;justify-content:center;font-size:1.8rem;
+  border:2px solid var(--green);
+}
+.team-member h3{margin-bottom:.2rem}
+.team-member .role{color:var(--stamp);font-style:italic;font-size:.9rem;margin-bottom:.5rem}
+.team-member p{font-size:.88rem;color:var(--ink-light)}
+
+/* ── Footer ── */
+.footer{
+  background:var(--green-dark);color:var(--card);text-align:center;
+  padding:2rem;font-style:italic;opacity:.9;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:var(--cream)}
+::-webkit-scrollbar-thumb{background:var(--wood);border-radius:4px}
+
+/* ── Responsive ── */
+@media(max-width:768px){
+  .header h1{font-size:1.8rem}
+  section{padding:2rem 1rem}
+  .catalog-cabinet{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+  .circ-desk-header{flex-direction:column;text-align:center}
+}
+</style>
+</head>
+<body>
+
+<!-- ════ Header ════ -->
+<header class="header">
+  <h1>ShelfOS</h1>
+  <div class="tagline">"Every book in its place. Every patron on their way."</div>
+  <div class="org-badge sans">Org 145 &middot; Rank #5 &middot; Score 87.1 / 100</div>
+</header>
+
+<!-- ════ Navigation ════ -->
+<nav class="nav sans">
+  <a href="#catalog">Card Catalog</a>
+  <a href="#search">Search</a>
+  <a href="#graph">See-Also Graph</a>
+  <a href="#circulation">Circulation Desk</a>
+  <a href="#stacks">The Stacks</a>
+  <a href="#scoring">Score Receipt</a>
+  <a href="#concepts">Key Concepts</a>
+  <a href="#team">Team</a>
+</nav>
+
+<!-- ════ 1. Card Catalog ════ -->
+<section id="catalog">
+  <h2>The Card Catalog</h2>
+  <p style="margin-bottom:1rem;color:var(--ink-light)">Click a drawer to browse memories classified within. Pull out a card to see its full five-factor classification.</p>
+  <div class="catalog-cabinet" id="catalogCabinet"></div>
+  <div id="cardTray" class="card-tray"></div>
+</section>
+
+<!-- ════ 2. Search ════ -->
+<section id="search">
+  <div class="search-section">
+    <h2>Search the Catalog</h2>
+    <p style="color:var(--card);opacity:.8;margin-bottom:1rem;font-size:.95rem">Query by subject, source, call number, or let "see also" links find what you didn't know to look for.</p>
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Try: authentication, session, middleware, token, API..." autocomplete="off" />
+      <button onclick="performSearch()">Search</button>
+    </div>
+    <div class="search-results" id="searchResults"></div>
+  </div>
+</section>
+
+<!-- ════ 3. See-Also Graph ════ -->
+<section id="graph">
+  <h2>See-Also Graph</h2>
+  <p style="margin-bottom:1rem;color:var(--ink-light)">A force-directed knowledge graph of memory cross-references. Drag nodes to explore. Click for details.</p>
+  <div class="graph-container" style="height:480px;position:relative">
+    <canvas id="graphCanvas"></canvas>
+    <div class="graph-legend">
+      <div><span class="dot" style="background:var(--green)"></span> ARCH</div>
+      <div><span class="dot" style="background:var(--stamp)"></span> SEC</div>
+      <div><span class="dot" style="background:var(--brass)"></span> TEST</div>
+      <div><span class="dot" style="background:#4a6fa5"></span> TOOL</div>
+      <div><span class="dot" style="background:#7b4a8a"></span> DOM</div>
+    </div>
+    <div class="node-tooltip" id="nodeTooltip"></div>
+  </div>
+</section>
+
+<!-- ════ 4. Circulation Desk ════ -->
+<section id="circulation">
+  <h2>Circulation Desk</h2>
+  <div class="circ-desk">
+    <div class="circ-desk-header">
+      <div class="librarian-avatar" title="Miriam, Head Librarian">&#128218;</div>
+      <div>
+        <div class="circ-speech" id="circSpeech">Welcome to the circulation desk. How may I help you today?</div>
+        <div class="sans" style="font-size:.85rem;color:var(--ink-light)">Miriam &mdash; Head Librarian / PR Coordinator</div>
+      </div>
+    </div>
+    <div class="circ-queue" id="circQueue"></div>
+  </div>
+</section>
+
+<!-- ════ 5. The Stacks ════ -->
+<section id="stacks">
+  <h2>The Stacks</h2>
+  <p style="margin-bottom:1rem;color:var(--ink-light)">Scroll through the bookshelves. Each spine is a memory, color-coded by subject domain. Pull a book to read its contents.</p>
+  <div class="stacks-wrapper">
+    <div class="stacks-shelf" id="stacksShelf"></div>
+  </div>
+</section>
+
+<!-- Book popup overlay -->
+<div class="book-overlay" id="bookOverlay" onclick="closeBookPopup()"></div>
+<div class="book-popup" id="bookPopup">
+  <button class="close-btn" onclick="closeBookPopup()">&times;</button>
+  <div id="bookPopupContent"></div>
+</div>
+
+<!-- ════ 6. Scoring Receipt ════ -->
+<section id="scoring">
+  <h2>Score Breakdown</h2>
+  <div class="receipt">
+    <h3>SHELFOS LIBRARY</h3>
+    <div style="text-align:center;font-size:.78rem;margin-bottom:.5rem">CHECKOUT RECEIPT</div>
+    <div style="text-align:center;font-size:.75rem;color:#999;margin-bottom:.8rem">2026-03-28 &middot; Org 145 &middot; Rank #5</div>
+    <div class="separator"></div>
+    <div class="line"><span>Plugin Architecture</span><span>14.2 / 15</span></div>
+    <div class="line"><span>Provider Interface</span><span>13.8 / 15</span></div>
+    <div class="line"><span>Agent Design</span><span>13.5 / 15</span></div>
+    <div class="line"><span>PR Coordination</span><span>12.9 / 15</span></div>
+    <div class="line"><span>Memory &amp; Identity</span><span>14.0 / 15</span></div>
+    <div class="line"><span>Signed Commits</span><span>9.2 / 10</span></div>
+    <div class="line"><span>Token Budget</span><span>9.5 / 10</span></div>
+    <div class="separator"></div>
+    <div class="line"><span>Novelty Bonus</span><span>+2.0</span></div>
+    <div class="line"><span>Library Science Elegance</span><span>+1.5</span></div>
+    <div class="line"><span>Lean Budget (26k tokens)</span><span>+1.0</span></div>
+    <div class="separator"></div>
+    <div class="line"><span>Deductions: Niche risk</span><span>-4.5</span></div>
+    <div class="separator"></div>
+    <div class="line total"><span>TOTAL</span><span>87.1 / 100</span></div>
+    <div class="separator"></div>
+    <div style="text-align:center;font-size:.75rem;margin-top:.5rem">
+      Items checked out: 7 &middot; Overdue: 0<br/>
+      <em>Thank you for visiting ShelfOS Library.</em><br/>
+      <em>Please return materials on time.</em>
+    </div>
+    <div class="barcode">||| |||| || ||| |||| | || |||| ||| |||| |||</div>
+  </div>
+</section>
+
+<!-- ════ Key Concepts ════ -->
+<section id="concepts">
+  <h2>Key Concepts</h2>
+  <div class="concept-grid">
+    <div class="concept-card">
+      <h3>Card-Catalog Memory</h3>
+      <div class="metaphor">The card catalog &rarr; Agent memory index</div>
+      <p>Memories indexed by five simultaneous classification systems: subject, source, temporal, relational, and hierarchical call number. Multiple paths to the same knowledge.</p>
+    </div>
+    <div class="concept-card">
+      <h3>Circulation Desk</h3>
+      <div class="metaphor">Check out / check in &rarr; PR coordination</div>
+      <p>PRs are library transactions. Agents check out work items, process them, and check them back in. Holds and reserves manage contention.</p>
+    </div>
+    <div class="concept-card">
+      <h3>The Stacks</h3>
+      <div class="metaphor">Library shelves &rarr; Git refs by call number</div>
+      <p>Memory storage organized under <code>refs/catalog/</code> with a Dewey-like hierarchical addressing scheme. JSON files in Git refs: human-readable, diffable, Git-native.</p>
+    </div>
+    <div class="concept-card">
+      <h3>See Also</h3>
+      <div class="metaphor">Cross-reference cards &rarr; Knowledge graph</div>
+      <p>Bidirectional links between memories capture semantic relationships that keyword search misses. Max 5 per memory forces prioritization of strongest connections.</p>
+    </div>
+    <div class="concept-card">
+      <h3>Deaccession</h3>
+      <div class="metaphor">Library withdrawal &rarr; Memory expiration</div>
+      <p>Memories expire when their TTL lapses and circulation drops. Deaccessioned items move to archive, never deleted. Historical research always possible.</p>
+    </div>
+    <div class="concept-card">
+      <h3>Shelf Reading</h3>
+      <div class="metaphor">Stack verification &rarr; Workspace consistency check</div>
+      <p><code>but ai shelfread</code> walks the workspace and verifies that actual state matches catalog expectations. Discrepancies surface as "misfiled" items.</p>
+    </div>
+    <div class="concept-card">
+      <h3>Interlibrary Loan</h3>
+      <div class="metaphor">Cross-library lending &rarr; Cross-repo coordination</div>
+      <p>Cross-repo dependencies modeled as loan requests with due dates, reasons, and classifications. Richer than "dependency" because loans have context.</p>
+    </div>
+    <div class="concept-card">
+      <h3>Five-Factor Scoring</h3>
+      <div class="metaphor">Relevance ranking &rarr; Memory retrieval</div>
+      <p>Subject match (35%), call number proximity (25%), see-also distance (20%), circulation frequency (10%), freshness (10%). Every retrieval is scored and ranked.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ════ Team ════ -->
+<section id="team">
+  <h2>The Team</h2>
+  <div class="team-grid">
+    <div class="team-member">
+      <div class="avatar" style="background:var(--green-light)">&#128214;</div>
+      <h3>Miriam Achterberg</h3>
+      <div class="role">CEO / Product Lead</div>
+      <p>Public librarian for 11 years. MLIS from University of Washington. Thinks in call numbers. Bugs are "misfiled." Deploys are "accessions."</p>
+    </div>
+    <div class="team-member">
+      <div class="avatar" style="background:var(--brass)">&#9881;</div>
+      <h3>Tom&aacute;s Guerrero-Blanco</h3>
+      <div class="role">CTO / Engineering Lead</div>
+      <p>Ex-Amazon Robotics. Builds cameras and the CV pipeline. Wants to do one thing and do it perfectly. The lease was a negotiation outcome.</p>
+    </div>
+    <div class="team-member">
+      <div class="avatar" style="background:#4a6fa5">&#128187;</div>
+      <h3>Wei Zhang</h3>
+      <div class="role">Full-Stack Developer</div>
+      <p>Stanford dropout. Builds catalog sync, API, and patron apps. Mediates scope wars. Has visited the Seattle office exactly twice.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ════ Footer ════ -->
+<footer class="footer">
+  <p>ShelfOS &middot; Org 145 &middot; Seattle, WA (above a used bookstore)</p>
+  <p style="margin-top:.3rem;font-size:.85rem">Library Science meets Startup Hustle &middot; Card-Catalog Memory for but-ai</p>
+</footer>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// DATA: Simulated catalog memories
+// ══════════════════════════════════════════════════════════════
+const MEMORIES = [
+  {
+    id:"mem_001",callNumber:"ARCH.AUTH.MIDDLEWARE.TOKEN-VALIDATION",
+    content:"JWT validation with RS256 algorithm, 15-minute token expiry. Middleware intercepts all /api/* routes.",
+    subjects:["authentication","jwt","middleware"],
+    source:{task:"task_012",agent:"shelver",tool:"GetBranchChanges"},
+    created:"2026-03-15",lastAccessed:"2026-03-28",
+    seeAlso:["mem_003","mem_007","mem_015"],
+    circulation:12,confidence:0.92
+  },
+  {
+    id:"mem_002",callNumber:"ARCH.DB.MIGRATIONS.SCHEMA-V3",
+    content:"Database schema v3 adds user_preferences table with JSONB column for settings. Migration is reversible.",
+    subjects:["database","migrations","schema"],
+    source:{task:"task_008",agent:"shelver",tool:"Commit"},
+    created:"2026-03-10",lastAccessed:"2026-03-26",
+    seeAlso:["mem_005","mem_009"],
+    circulation:8,confidence:0.88
+  },
+  {
+    id:"mem_003",callNumber:"ARCH.AUTH.SESSION-MANAGEMENT",
+    content:"Session tokens stored in httpOnly cookies. Refresh rotation every 7 days. Logout invalidates all sessions.",
+    subjects:["authentication","session","cookies"],
+    source:{task:"task_014",agent:"shelver",tool:"GetBranchChanges"},
+    created:"2026-03-16",lastAccessed:"2026-03-27",
+    seeAlso:["mem_001","mem_007"],
+    circulation:9,confidence:0.90
+  },
+  {
+    id:"mem_004",callNumber:"TEST.UNIT.AUTH.TOKEN-VALIDATION",
+    content:"Unit tests for token validation cover: valid token, expired token, malformed token, missing claims, wrong algorithm.",
+    subjects:["testing","authentication","unit-tests"],
+    source:{task:"task_013",agent:"shelver",tool:"Commit"},
+    created:"2026-03-15",lastAccessed:"2026-03-25",
+    seeAlso:["mem_001","mem_011"],
+    circulation:6,confidence:0.95
+  },
+  {
+    id:"mem_005",callNumber:"ARCH.DB.CONNECTIONS.POOLING",
+    content:"Connection pool configured with max 20 connections, 30s idle timeout. PgBouncer in transaction mode for WASI compat.",
+    subjects:["database","connections","performance"],
+    source:{task:"task_009",agent:"shelver",tool:"GetProjectStatus"},
+    created:"2026-03-11",lastAccessed:"2026-03-24",
+    seeAlso:["mem_002","mem_010"],
+    circulation:5,confidence:0.85
+  },
+  {
+    id:"mem_006",callNumber:"ARCH.API.V2.RESPONSE-FORMAT",
+    content:"API v2 uses envelope format: {data, meta, errors}. All timestamps ISO 8601. Pagination via cursor, not offset.",
+    subjects:["api","response-format","pagination"],
+    source:{task:"task_018",agent:"shelver",tool:"Commit"},
+    created:"2026-03-20",lastAccessed:"2026-03-28",
+    seeAlso:["mem_015","mem_012"],
+    circulation:10,confidence:0.91
+  },
+  {
+    id:"mem_007",callNumber:"SEC.TOKEN-ROTATION",
+    content:"Token rotation policy: refresh tokens rotated on each use. Stolen refresh token detected by reuse, invalidates family.",
+    subjects:["security","token-rotation","authentication"],
+    source:{task:"task_016",agent:"shelver",tool:"GetBranchChanges"},
+    created:"2026-03-18",lastAccessed:"2026-03-28",
+    seeAlso:["mem_001","mem_003","mem_004"],
+    circulation:11,confidence:0.93
+  },
+  {
+    id:"mem_008",callNumber:"TOOL.BUILD.WASI-TARGET",
+    content:"WASI build target: wasm32-wasip2. Binary 3.0MB release. Runs in wasmtime. std::process::id() unsupported.",
+    subjects:["wasi","build","compilation"],
+    source:{task:"task_020",agent:"shelver",tool:"Commit"},
+    created:"2026-03-22",lastAccessed:"2026-03-28",
+    seeAlso:["mem_010","mem_013"],
+    circulation:7,confidence:0.89
+  },
+  {
+    id:"mem_009",callNumber:"ARCH.DB.MIGRATIONS.ROLLBACK",
+    content:"Rollback strategy: each migration has up() and down(). down() tested in CI. Schema snapshots stored in refs/schema/.",
+    subjects:["database","migrations","rollback"],
+    source:{task:"task_008",agent:"shelver",tool:"Commit"},
+    created:"2026-03-10",lastAccessed:"2026-03-22",
+    seeAlso:["mem_002"],
+    circulation:4,confidence:0.87
+  },
+  {
+    id:"mem_010",callNumber:"TOOL.BUILD.CARGO-PATCHES",
+    content:"3 upstream gix patches in cargo cache: gix-path, gix-fs, gix-index. Need formalizing as [patch] entries in Cargo.toml.",
+    subjects:["build","cargo","patches"],
+    source:{task:"task_021",agent:"cataloger",tool:"GetProjectStatus"},
+    created:"2026-03-23",lastAccessed:"2026-03-27",
+    seeAlso:["mem_008"],
+    circulation:3,confidence:0.82
+  },
+  {
+    id:"mem_011",callNumber:"TEST.INTEG.AUTH.FULL-FLOW",
+    content:"Integration test: register -> login -> get token -> access protected -> refresh -> logout. Takes 2.3s. Needs mock server.",
+    subjects:["testing","integration","authentication"],
+    source:{task:"task_017",agent:"shelver",tool:"Commit"},
+    created:"2026-03-19",lastAccessed:"2026-03-26",
+    seeAlso:["mem_004","mem_001","mem_003"],
+    circulation:5,confidence:0.91
+  },
+  {
+    id:"mem_012",callNumber:"ARCH.API.V2.ERROR-HANDLING",
+    content:"Errors return structured {code, message, details[]}. HTTP status matches RFC 7807. Validation errors list all fields.",
+    subjects:["api","error-handling","validation"],
+    source:{task:"task_019",agent:"shelver",tool:"Commit"},
+    created:"2026-03-21",lastAccessed:"2026-03-27",
+    seeAlso:["mem_006"],
+    circulation:6,confidence:0.90
+  },
+  {
+    id:"mem_013",callNumber:"TOOL.CI.PIPELINE",
+    content:"CI pipeline: lint -> test -> build -> wasi-build -> deploy-preview. WASI build gated on feature flag. Total: ~4min.",
+    subjects:["ci","pipeline","build"],
+    source:{task:"task_022",agent:"cataloger",tool:"GetProjectStatus"},
+    created:"2026-03-24",lastAccessed:"2026-03-28",
+    seeAlso:["mem_008","mem_010"],
+    circulation:4,confidence:0.86
+  },
+  {
+    id:"mem_014",callNumber:"DOM.BRANCH.NAMING",
+    content:"Branch naming: shelf/s01.s03/shelver/description. Namespace/dependency-chain/agent/task. Dependencies encoded in name.",
+    subjects:["branches","naming","conventions"],
+    source:{task:"task_001",agent:"cataloger",tool:"GetProjectStatus"},
+    created:"2026-03-01",lastAccessed:"2026-03-28",
+    seeAlso:["mem_016"],
+    circulation:15,confidence:0.97
+  },
+  {
+    id:"mem_015",callNumber:"ARCH.API.V1.LEGACY",
+    content:"API v1 used session cookies, not JWT. Deprecated but still served at /api/v1/*. Sunset date: 2026-06-01.",
+    subjects:["api","legacy","deprecation"],
+    source:{task:"task_003",agent:"cataloger",tool:"GetBranchChanges"},
+    created:"2026-03-05",lastAccessed:"2026-03-20",
+    seeAlso:["mem_001","mem_006"],
+    circulation:3,confidence:0.84
+  },
+  {
+    id:"mem_016",callNumber:"DOM.PR.COORDINATION",
+    content:"PR coordination uses catalog/v1 protocol. Types: loan_request, return, hold, reference, budget_report. All classified by call number.",
+    subjects:["pr","coordination","protocol"],
+    source:{task:"task_025",agent:"circ",tool:"GetProjectStatus"},
+    created:"2026-03-26",lastAccessed:"2026-03-28",
+    seeAlso:["mem_014","mem_017"],
+    circulation:8,confidence:0.94
+  },
+  {
+    id:"mem_017",callNumber:"DOM.PR.INTERLIBRARY-LOAN",
+    content:"Cross-repo deps modeled as interlibrary loans. Loan has: requesting/lending collection, item, call_number, reason, due_date, see_also.",
+    subjects:["cross-repo","coordination","interlibrary"],
+    source:{task:"task_026",agent:"circ",tool:"Commit"},
+    created:"2026-03-27",lastAccessed:"2026-03-28",
+    seeAlso:["mem_016","mem_006"],
+    circulation:4,confidence:0.88
+  },
+  {
+    id:"mem_018",callNumber:"SEC.SIGNING.OPENWALLET",
+    content:"Agent commits signed via OpenWallet. Signature includes call number, subject headings, authorization scope, budget used.",
+    subjects:["security","signing","identity"],
+    source:{task:"task_028",agent:"circ",tool:"Commit"},
+    created:"2026-03-28",lastAccessed:"2026-03-28",
+    seeAlso:["mem_007","mem_014"],
+    circulation:2,confidence:0.91
+  },
+  {
+    id:"mem_019",callNumber:"ARCH.MEMORY.COMPACTION",
+    content:"Compaction tiers: >5 checkouts=full, 1-5=summary, 0=call number only. Ready reference costs ~1500 tokens post-compaction.",
+    subjects:["memory","compaction","context-window"],
+    source:{task:"task_030",agent:"cataloger",tool:"GetProjectStatus"},
+    created:"2026-03-28",lastAccessed:"2026-03-28",
+    seeAlso:["mem_020"],
+    circulation:3,confidence:0.90
+  },
+  {
+    id:"mem_020",callNumber:"ARCH.MEMORY.RETRIEVAL-SCORING",
+    content:"Five-factor scoring: subject match 35%, call number proximity 25%, see-also distance 20%, circulation 10%, freshness 10%.",
+    subjects:["memory","retrieval","scoring"],
+    source:{task:"task_029",agent:"cataloger",tool:"GetProjectStatus"},
+    created:"2026-03-28",lastAccessed:"2026-03-28",
+    seeAlso:["mem_019","mem_001"],
+    circulation:6,confidence:0.96
+  }
+];
+
+// ── Drawer groupings (by top-level call number) ──
+const DRAWERS = {
+  "ARCH.AUTH":{label:"ARCH.AUTH",color:"#2d5a27"},
+  "ARCH.DB":{label:"ARCH.DB",color:"#2d5a27"},
+  "ARCH.API":{label:"ARCH.API",color:"#2d5a27"},
+  "ARCH.MEMORY":{label:"ARCH.MEMORY",color:"#2d5a27"},
+  "TEST":{label:"TEST",color:"#b8860b"},
+  "SEC":{label:"SEC",color:"#8b2500"},
+  "TOOL":{label:"TOOL",color:"#4a6fa5"},
+  "DOM":{label:"DOM",color:"#7b4a8a"}
+};
+
+function getDrawerKey(cn){
+  for(const k of Object.keys(DRAWERS)){if(cn.startsWith(k))return k}
+  return cn.split(".").slice(0,2).join(".");
+}
+
+// ══════════════════════════════════════════════════════════════
+// 1. CARD CATALOG
+// ══════════════════════════════════════════════════════════════
+(function initCatalog(){
+  const cabinet=document.getElementById("catalogCabinet");
+  const tray=document.getElementById("cardTray");
+  let openDrawer=null;
+
+  // group memories by drawer
+  const groups={};
+  for(const m of MEMORIES){
+    const k=getDrawerKey(m.callNumber);
+    if(!groups[k])groups[k]=[];
+    groups[k].push(m);
+  }
+
+  for(const [key,info] of Object.entries(DRAWERS)){
+    const items=groups[key]||[];
+    const d=document.createElement("div");
+    d.className="drawer";d.dataset.key=key;
+    d.innerHTML=`<div class="drawer-label">${info.label}</div><div class="drawer-handle"></div><div class="drawer-count">${items.length}</div>`;
+    d.addEventListener("click",()=>toggleDrawer(key,items,d));
+    cabinet.appendChild(d);
+  }
+
+  function toggleDrawer(key,items,el){
+    if(openDrawer===key){
+      tray.className="card-tray";tray.innerHTML="";
+      el.classList.remove("open");openDrawer=null;return;
+    }
+    document.querySelectorAll(".drawer").forEach(d=>d.classList.remove("open"));
+    el.classList.add("open");openDrawer=key;
+    tray.innerHTML="";
+    if(items.length===0){
+      tray.innerHTML='<div style="color:var(--ink-light);font-style:italic;padding:.5rem">No cards filed in this drawer yet.</div>';
+    }else{
+      for(const m of items)tray.appendChild(createCard(m));
+    }
+    tray.className="card-tray visible";
+    tray.scrollIntoView({behavior:"smooth",block:"nearest"});
+  }
+})();
+
+function createCard(m,matchType){
+  const c=document.createElement("div");
+  c.className="catalog-card";
+  let matchBadge="";
+  if(matchType){
+    const cls={subject:"match-subject",source:"match-source",temporal:"match-temporal","see-also":"match-seealso","call-number":"match-callnumber"};
+    matchBadge=`<span class="match-type ${cls[matchType]||""}">${matchType}</span>`;
+  }
+  c.innerHTML=`
+    <div class="call-number">${matchBadge}${m.callNumber}</div>
+    <div class="subject-line">Subjects: ${m.subjects.join(", ")}</div>
+    <div class="content-preview">${m.content}</div>
+    <div class="card-meta">
+      <div class="classification-row">
+        ${m.subjects.map(s=>`<span class="tag">${s}</span>`).join("")}
+        <span class="tag source">${m.source.agent}</span>
+        <span class="tag temporal">${m.created}</span>
+      </div>
+      <div style="margin-top:.4rem">
+        <strong>Source:</strong> ${m.source.task} via ${m.source.tool}<br/>
+        <strong>Circulation:</strong> ${m.circulation} checkouts &middot; Last: ${m.lastAccessed}<br/>
+        <strong>Confidence:</strong> ${(m.confidence*100).toFixed(0)}%<br/>
+        <strong>See Also:</strong> ${m.seeAlso.map(id=>{const ref=MEMORIES.find(x=>x.id===id);return ref?`<span class="tag see-also">${ref.callNumber}</span>`:"";}).join(" ")}
+      </div>
+    </div>`;
+  c.addEventListener("click",()=>c.classList.toggle("expanded"));
+  return c;
+}
+
+// ══════════════════════════════════════════════════════════════
+// 2. SEARCH
+// ══════════════════════════════════════════════════════════════
+document.getElementById("searchInput").addEventListener("keydown",e=>{if(e.key==="Enter")performSearch()});
+
+function performSearch(){
+  const q=document.getElementById("searchInput").value.trim().toLowerCase();
+  const results=document.getElementById("searchResults");
+  results.innerHTML="";
+  if(!q){results.innerHTML='<div style="opacity:.7">Enter a search term above.</div>';return;}
+
+  const matches=[];
+  for(const m of MEMORIES){
+    let matchType=null;let score=0;
+    // Subject match
+    if(m.subjects.some(s=>s.includes(q))){matchType="subject";score+=35;}
+    // Call number match
+    if(m.callNumber.toLowerCase().includes(q)){matchType=matchType||"call-number";score+=25;}
+    // Content match
+    if(m.content.toLowerCase().includes(q)){matchType=matchType||"subject";score+=15;}
+    // Source match
+    if(m.source.agent.includes(q)||m.source.task.includes(q)||m.source.tool.toLowerCase().includes(q)){matchType=matchType||"source";score+=10;}
+    // See-also (find memories that link to memories matching the query)
+    if(!matchType){
+      for(const sid of m.seeAlso){
+        const linked=MEMORIES.find(x=>x.id===sid);
+        if(linked&&(linked.subjects.some(s=>s.includes(q))||linked.content.toLowerCase().includes(q))){
+          matchType="see-also";score+=20;break;
+        }
+      }
+    }
+    if(matchType)matches.push({memory:m,matchType,score});
+  }
+  matches.sort((a,b)=>b.score-a.score);
+
+  if(matches.length===0){
+    results.innerHTML=`<div style="opacity:.7;font-style:italic">No items found for "${q}". Try: authentication, database, api, token, build</div>`;
+    return;
+  }
+  results.innerHTML=`<div style="margin-bottom:.8rem;font-size:.9rem">${matches.length} item${matches.length>1?"s":""} found:</div>`;
+  for(const{memory,matchType} of matches){
+    const r=document.createElement("div");
+    r.className="search-result";
+    r.style.animationDelay=(matches.indexOf(matches.find(x=>x.memory===memory))*0.08)+"s";
+    r.appendChild(createCard(memory,matchType));
+    results.appendChild(r);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// 3. SEE-ALSO GRAPH (Force-directed on Canvas)
+// ══════════════════════════════════════════════════════════════
+(function initGraph(){
+  const canvas=document.getElementById("graphCanvas");
+  const container=canvas.parentElement;
+  const tooltip=document.getElementById("nodeTooltip");
+  const ctx=canvas.getContext("2d");
+  let W,H,dpr;
+
+  function resize(){
+    const rect=container.getBoundingClientRect();
+    dpr=window.devicePixelRatio||1;
+    W=rect.width;H=rect.height;
+    canvas.width=W*dpr;canvas.height=H*dpr;
+    canvas.style.width=W+"px";canvas.style.height=H+"px";
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  resize();window.addEventListener("resize",resize);
+
+  const colorMap={"ARCH":"#2d5a27","SEC":"#8b2500","TEST":"#b8860b","TOOL":"#4a6fa5","DOM":"#7b4a8a"};
+  function nodeColor(cn){const t=cn.split(".")[0];return colorMap[t]||"#666"}
+
+  // Build nodes
+  const nodes=MEMORIES.map((m,i)=>({
+    id:m.id,idx:i,
+    x:W/2+(Math.random()-.5)*W*.6,
+    y:H/2+(Math.random()-.5)*H*.6,
+    vx:0,vy:0,
+    r:8+Math.min(m.circulation,15)*1.2,
+    color:nodeColor(m.callNumber),
+    memory:m
+  }));
+
+  // Build edges
+  const edges=[];
+  for(const m of MEMORIES){
+    for(const sid of m.seeAlso){
+      const ti=nodes.findIndex(n=>n.id===sid);
+      const fi=nodes.findIndex(n=>n.id===m.id);
+      if(ti>=0&&fi>=0&&!edges.some(e=>(e.s===fi&&e.t===ti)||(e.s===ti&&e.t===fi))){
+        edges.push({s:fi,t:ti});
+      }
+    }
+  }
+
+  // Physics
+  let dragging=null,dragOff={x:0,y:0};
+  let hoveredNode=null;
+
+  function simulate(){
+    const k=0.005,repel=2000,damp=0.85,center=0.002;
+    // Center gravity
+    for(const n of nodes){
+      n.vx+=(W/2-n.x)*center;
+      n.vy+=(H/2-n.y)*center;
+    }
+    // Repulsion
+    for(let i=0;i<nodes.length;i++){
+      for(let j=i+1;j<nodes.length;j++){
+        let dx=nodes[j].x-nodes[i].x,dy=nodes[j].y-nodes[i].y;
+        let d2=dx*dx+dy*dy;if(d2<1)d2=1;
+        let f=repel/d2;
+        let fx=dx/Math.sqrt(d2)*f,fy=dy/Math.sqrt(d2)*f;
+        nodes[i].vx-=fx;nodes[i].vy-=fy;
+        nodes[j].vx+=fx;nodes[j].vy+=fy;
+      }
+    }
+    // Spring (edges)
+    for(const e of edges){
+      const a=nodes[e.s],b=nodes[e.t];
+      let dx=b.x-a.x,dy=b.y-a.y;
+      let d=Math.sqrt(dx*dx+dy*dy);if(d<1)d=1;
+      let f=(d-120)*k;
+      let fx=dx/d*f,fy=dy/d*f;
+      a.vx+=fx;a.vy+=fy;
+      b.vx-=fx;b.vy-=fy;
+    }
+    // Update
+    for(const n of nodes){
+      if(n===dragging)continue;
+      n.vx*=damp;n.vy*=damp;
+      n.x+=n.vx;n.y+=n.vy;
+      n.x=Math.max(n.r,Math.min(W-n.r,n.x));
+      n.y=Math.max(n.r,Math.min(H-n.r,n.y));
+    }
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    // Edges
+    ctx.lineWidth=1.5;ctx.strokeStyle="rgba(139,105,20,.2)";
+    for(const e of edges){
+      ctx.beginPath();ctx.moveTo(nodes[e.s].x,nodes[e.s].y);
+      ctx.lineTo(nodes[e.t].x,nodes[e.t].y);ctx.stroke();
+    }
+    // Nodes
+    for(const n of nodes){
+      ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
+      ctx.fillStyle=n.color;ctx.fill();
+      ctx.strokeStyle="rgba(255,255,255,.4)";ctx.lineWidth=1.5;ctx.stroke();
+      // Label
+      ctx.fillStyle="white";ctx.font="bold 7px Courier New";ctx.textAlign="center";ctx.textBaseline="middle";
+      const short=n.memory.callNumber.split(".").slice(-1)[0];
+      ctx.fillText(short.substring(0,8),n.x,n.y);
+    }
+    // Hover highlight
+    if(hoveredNode){
+      ctx.beginPath();ctx.arc(hoveredNode.x,hoveredNode.y,hoveredNode.r+4,0,Math.PI*2);
+      ctx.strokeStyle="var(--brass-light)";ctx.lineWidth=2.5;ctx.stroke();
+      // Highlight connected edges
+      ctx.lineWidth=2;ctx.strokeStyle="rgba(218,165,32,.5)";
+      for(const e of edges){
+        if(nodes[e.s]===hoveredNode||nodes[e.t]===hoveredNode){
+          ctx.beginPath();ctx.moveTo(nodes[e.s].x,nodes[e.s].y);
+          ctx.lineTo(nodes[e.t].x,nodes[e.t].y);ctx.stroke();
+        }
+      }
+    }
+  }
+
+  function loop(){simulate();draw();requestAnimationFrame(loop)}
+  loop();
+
+  // Interaction
+  function getMousePos(e){
+    const rect=canvas.getBoundingClientRect();
+    return{x:e.clientX-rect.left,y:e.clientY-rect.top};
+  }
+  function findNode(pos){
+    for(let i=nodes.length-1;i>=0;i--){
+      const n=nodes[i];
+      const dx=pos.x-n.x,dy=pos.y-n.y;
+      if(dx*dx+dy*dy<n.r*n.r)return n;
+    }
+    return null;
+  }
+
+  canvas.addEventListener("mousedown",e=>{
+    const pos=getMousePos(e);
+    const n=findNode(pos);
+    if(n){dragging=n;dragOff={x:n.x-pos.x,y:n.y-pos.y};canvas.style.cursor="grabbing";}
+  });
+  canvas.addEventListener("mousemove",e=>{
+    const pos=getMousePos(e);
+    if(dragging){
+      dragging.x=pos.x+dragOff.x;dragging.y=pos.y+dragOff.y;
+      dragging.vx=0;dragging.vy=0;
+    }
+    const h=findNode(pos);
+    hoveredNode=h;
+    if(h&&!dragging){
+      canvas.style.cursor="pointer";
+      const m=h.memory;
+      tooltip.style.display="block";
+      tooltip.style.left=Math.min(pos.x+15,W-290)+"px";
+      tooltip.style.top=Math.min(pos.y+15,H-120)+"px";
+      tooltip.innerHTML=`<div style="color:var(--stamp);font-weight:bold;margin-bottom:.3rem">${m.callNumber}</div>
+        <div style="margin-bottom:.3rem">${m.content}</div>
+        <div style="font-size:.75rem;color:var(--ink-light)">Subjects: ${m.subjects.join(", ")}<br/>Circulation: ${m.circulation} | Confidence: ${(m.confidence*100).toFixed(0)}%</div>`;
+    }else if(!dragging){
+      canvas.style.cursor="grab";
+      tooltip.style.display="none";
+    }
+  });
+  canvas.addEventListener("mouseup",()=>{dragging=null;canvas.style.cursor="grab"});
+  canvas.addEventListener("mouseleave",()=>{dragging=null;hoveredNode=null;tooltip.style.display="none";canvas.style.cursor="grab"});
+
+  // Click to expand
+  canvas.addEventListener("click",e=>{
+    const pos=getMousePos(e);
+    const n=findNode(pos);
+    if(n)showBookPopup(n.memory);
+  });
+
+  // Touch support
+  canvas.addEventListener("touchstart",e=>{
+    e.preventDefault();
+    const touch=e.touches[0];
+    const pos=getMousePos(touch);
+    const n=findNode(pos);
+    if(n){dragging=n;dragOff={x:n.x-pos.x,y:n.y-pos.y}}
+  },{passive:false});
+  canvas.addEventListener("touchmove",e=>{
+    e.preventDefault();
+    if(dragging){
+      const touch=e.touches[0];
+      const pos=getMousePos(touch);
+      dragging.x=pos.x+dragOff.x;dragging.y=pos.y+dragOff.y;
+      dragging.vx=0;dragging.vy=0;
+    }
+  },{passive:false});
+  canvas.addEventListener("touchend",()=>{dragging=null});
+})();
+
+// ══════════════════════════════════════════════════════════════
+// 4. CIRCULATION DESK
+// ══════════════════════════════════════════════════════════════
+(function initCirculation(){
+  const queue=document.getElementById("circQueue");
+  const speech=document.getElementById("circSpeech");
+
+  const items=[
+    {id:"PR-101",title:"ARCH.AUTH.MIDDLEWARE -- Token validation refactor",status:"checked-out",agent:"shelver"},
+    {id:"PR-098",title:"ARCH.DB.MIGRATIONS -- Schema v3 migration",status:"checked-in",agent:"shelver"},
+    {id:"PR-105",title:"SEC.TOKEN-ROTATION -- Refresh token family",status:"on-hold",agent:"circ"},
+    {id:"PR-110",title:"ARCH.API.V2 -- Response format standardization",status:"available",agent:null},
+    {id:"PR-112",title:"DOM.PR.INTERLIBRARY-LOAN -- Cross-repo protocol",status:"available",agent:null},
+    {id:"PR-115",title:"TOOL.BUILD.WASI-TARGET -- WASI compilation",status:"checked-out",agent:"shelver"},
+  ];
+
+  const speeches={
+    "check-out":"I've checked that out for you. Please return it when your task is complete.",
+    "check-in":"Thank you for returning that. I'll re-shelve it right away.",
+    "hold":"I've placed a hold on that item. You'll be notified when it's available.",
+    "available":"That item is on the shelf. Would you like to check it out?",
+  };
+
+  function render(){
+    queue.innerHTML="";
+    for(const item of items){
+      const div=document.createElement("div");
+      div.className="circ-item";
+      const statusClass=`status-${item.status.replace(" ","-")}`;
+      let btnLabel="",nextStatus="";
+      switch(item.status){
+        case"checked-out":btnLabel="Check In";nextStatus="checked-in";break;
+        case"checked-in":btnLabel="Re-shelve";nextStatus="available";break;
+        case"on-hold":btnLabel="Check Out";nextStatus="checked-out";break;
+        case"available":btnLabel="Check Out";nextStatus="checked-out";break;
+      }
+      div.innerHTML=`
+        <span class="status-badge ${statusClass} sans">${item.status.replace("-"," ")}</span>
+        <span class="item-title">${item.id}: ${item.title}</span>
+        <button class="circ-btn sans">${btnLabel}</button>`;
+      div.querySelector(".circ-btn").addEventListener("click",()=>{
+        const prevStatus=item.status;
+        item.status=nextStatus;
+        if(nextStatus==="checked-out")item.agent="you";
+        if(nextStatus==="available")item.agent=null;
+        speech.textContent=speeches[nextStatus]||speeches["available"];
+        speech.style.animation="none";
+        setTimeout(()=>speech.style.animation="",10);
+        render();
+      });
+      queue.appendChild(div);
+    }
+  }
+  render();
+})();
+
+// ══════════════════════════════════════════════════════════════
+// 5. THE STACKS (Bookshelf)
+// ══════════════════════════════════════════════════════════════
+(function initStacks(){
+  const shelf=document.getElementById("stacksShelf");
+  const colorMap={"ARCH":"#2d5a27","SEC":"#8b2500","TEST":"#b8860b","TOOL":"#4a6fa5","DOM":"#7b4a8a"};
+  const sorted=[...MEMORIES].sort((a,b)=>a.callNumber.localeCompare(b.callNumber));
+
+  for(const m of sorted){
+    const topLevel=m.callNumber.split(".")[0];
+    const base=colorMap[topLevel]||"#666";
+    // Slight variation per book
+    const h=100+Math.floor(Math.random()*80);
+    const w=22+Math.floor(Math.random()*14);
+    const spine=document.createElement("div");
+    spine.className="book-spine";
+    spine.style.background=`linear-gradient(90deg,${base},${lighten(base,20)},${base})`;
+    spine.style.minHeight=h+"px";
+    spine.style.width=w+"px";
+    spine.title=m.callNumber;
+
+    const label=m.callNumber.split(".").slice(-1)[0];
+    spine.innerHTML=`<div class="spine-text">${label}</div>`;
+
+    spine.addEventListener("click",()=>{
+      // Toggle pulled state
+      document.querySelectorAll(".book-spine.pulled").forEach(b=>{if(b!==spine)b.classList.remove("pulled")});
+      spine.classList.toggle("pulled");
+      if(spine.classList.contains("pulled")){
+        showBookPopup(m);
+      }else{
+        closeBookPopup();
+      }
+    });
+
+    shelf.appendChild(spine);
+  }
+
+  function lighten(hex,amt){
+    let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+    r=Math.min(255,r+amt);g=Math.min(255,g+amt);b=Math.min(255,b+amt);
+    return`#${r.toString(16).padStart(2,"0")}${g.toString(16).padStart(2,"0")}${b.toString(16).padStart(2,"0")}`;
+  }
+})();
+
+function showBookPopup(m){
+  const popup=document.getElementById("bookPopup");
+  const overlay=document.getElementById("bookOverlay");
+  const content=document.getElementById("bookPopupContent");
+  content.innerHTML=`
+    <div style="color:var(--stamp);font-weight:bold;font-size:1rem;margin-bottom:.5rem">${m.callNumber}</div>
+    <div style="margin-bottom:.8rem;line-height:1.6">${m.content}</div>
+    <div style="font-size:.82rem;color:var(--ink-light);border-top:1px dashed var(--wood-light);padding-top:.6rem">
+      <div style="margin-bottom:.3rem"><strong>Subjects:</strong> ${m.subjects.map(s=>`<span style="background:var(--green);color:white;padding:.1rem .4rem;border-radius:2px;font-size:.72rem;margin-right:.3rem">${s}</span>`).join("")}</div>
+      <div style="margin-bottom:.3rem"><strong>Source:</strong> ${m.source.agent} / ${m.source.task} via ${m.source.tool}</div>
+      <div style="margin-bottom:.3rem"><strong>Created:</strong> ${m.created} &middot; <strong>Last accessed:</strong> ${m.lastAccessed}</div>
+      <div style="margin-bottom:.3rem"><strong>Circulation:</strong> ${m.circulation} checkouts &middot; <strong>Confidence:</strong> ${(m.confidence*100).toFixed(0)}%</div>
+      <div><strong>See Also:</strong> ${m.seeAlso.map(id=>{
+        const ref=MEMORIES.find(x=>x.id===id);
+        return ref?`<span style="background:#4a6fa5;color:white;padding:.1rem .4rem;border-radius:2px;font-size:.72rem;margin-right:.3rem;cursor:pointer" onclick="event.stopPropagation();showBookPopup(MEMORIES.find(x=>x.id==='${id}'))">${ref.callNumber}</span>`:"";
+      }).join("")}</div>
+    </div>`;
+  popup.classList.add("visible");
+  overlay.classList.add("visible");
+}
+
+function closeBookPopup(){
+  document.getElementById("bookPopup").classList.remove("visible");
+  document.getElementById("bookOverlay").classList.remove("visible");
+  document.querySelectorAll(".book-spine.pulled").forEach(b=>b.classList.remove("pulled"));
+}
+
+// ── Nav highlight ──
+(function initNav(){
+  const links=document.querySelectorAll(".nav a");
+  const sections=document.querySelectorAll("section");
+  window.addEventListener("scroll",()=>{
+    let current="";
+    for(const s of sections){
+      if(window.scrollY>=s.offsetTop-100)current=s.id;
+    }
+    links.forEach(l=>{
+      l.classList.toggle("active",l.getAttribute("href")==="#"+current);
+    });
+  });
+})();
+</script>
+</body>
+</html>

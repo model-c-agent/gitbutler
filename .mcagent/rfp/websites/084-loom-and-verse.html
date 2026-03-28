@@ -1,0 +1,2028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loom & Verse -- Narrative Memory for but-ai</title>
+<style>
+  /* ===== RESET & BASE ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --parchment:    #faf3e0;
+    --parchment-dk: #f0e6c8;
+    --parchment-lt: #fdf8ef;
+    --burgundy:     #722f37;
+    --burgundy-dk:  #4a1e23;
+    --burgundy-lt:  #9a4a54;
+    --gold:         #c9a227;
+    --gold-lt:      #e0c564;
+    --gold-dk:      #9a7a10;
+    --ink:          #2c1810;
+    --ink-lt:       #5a3d2e;
+    --cream:        #fff9ed;
+    --red-thread:   #b03040;
+    --arc-blue:     #3a6b8c;
+    --arc-green:    #4a7a5a;
+    --arc-purple:   #6a4a7a;
+    --arc-orange:   #b07030;
+    --shadow:       rgba(44, 24, 16, 0.12);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: Georgia, 'Palatino Linotype', Palatino, 'Book Antiqua', serif;
+    background: var(--parchment);
+    color: var(--ink);
+    line-height: 1.7;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  /* ===== DECORATIVE BORDER ===== */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 8px;
+    border: 2px solid var(--gold);
+    pointer-events: none;
+    z-index: 9999;
+    border-radius: 2px;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 12px;
+    border: 1px solid rgba(201, 162, 39, 0.3);
+    pointer-events: none;
+    z-index: 9999;
+    border-radius: 2px;
+  }
+
+  /* ===== SCROLLBAR ===== */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--parchment-dk); }
+  ::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 4px; }
+
+  /* ===== HEADER ===== */
+  .header {
+    text-align: center;
+    padding: 60px 40px 40px;
+    position: relative;
+    background: linear-gradient(180deg, var(--cream) 0%, var(--parchment) 100%);
+    border-bottom: 1px solid var(--gold);
+  }
+
+  .header-ornament {
+    font-size: 28px;
+    color: var(--gold);
+    letter-spacing: 12px;
+    margin-bottom: 16px;
+    opacity: 0.7;
+  }
+
+  .header h1 {
+    font-size: 3.2em;
+    font-weight: normal;
+    color: var(--burgundy);
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    font-variant: small-caps;
+  }
+
+  .header .subtitle {
+    font-style: italic;
+    color: var(--ink-lt);
+    font-size: 1.15em;
+    margin-bottom: 6px;
+  }
+
+  .header .org-badge {
+    display: inline-block;
+    font-size: 0.78em;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold-dk);
+    border: 1px solid var(--gold);
+    padding: 4px 18px;
+    margin-top: 12px;
+    background: rgba(201, 162, 39, 0.06);
+  }
+
+  .header .epigraph {
+    max-width: 640px;
+    margin: 28px auto 0;
+    font-style: italic;
+    font-size: 1.05em;
+    color: var(--burgundy-lt);
+    line-height: 1.8;
+  }
+  .header .epigraph .attribution {
+    display: block;
+    margin-top: 8px;
+    font-size: 0.85em;
+    color: var(--ink-lt);
+  }
+
+  /* ===== NAVIGATION ===== */
+  .nav {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    padding: 16px 20px;
+    background: var(--parchment-dk);
+    border-bottom: 1px solid rgba(201, 162, 39, 0.3);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    flex-wrap: wrap;
+  }
+
+  .nav a {
+    color: var(--burgundy);
+    text-decoration: none;
+    font-size: 0.82em;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 4px 0;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.3s, color 0.3s;
+  }
+  .nav a:hover {
+    border-bottom-color: var(--gold);
+    color: var(--burgundy-dk);
+  }
+
+  /* ===== MAIN LAYOUT ===== */
+  .main-layout {
+    display: grid;
+    grid-template-columns: 220px 1fr 220px;
+    max-width: 1340px;
+    margin: 0 auto;
+    min-height: 80vh;
+    gap: 0;
+  }
+
+  @media (max-width: 1000px) {
+    .main-layout {
+      grid-template-columns: 1fr;
+    }
+    .marginalia-left, .marginalia-right { display: none; }
+  }
+
+  /* ===== MARGINALIA ===== */
+  .marginalia-left, .marginalia-right {
+    padding: 40px 18px;
+    font-size: 0.72em;
+    color: var(--ink-lt);
+    line-height: 1.6;
+    position: relative;
+  }
+
+  .marginalia-left { border-right: 1px solid rgba(201, 162, 39, 0.2); }
+  .marginalia-right { border-left: 1px solid rgba(201, 162, 39, 0.2); }
+
+  .margin-note {
+    margin-bottom: 28px;
+    padding: 12px;
+    border-left: 2px solid var(--gold);
+    background: rgba(201, 162, 39, 0.04);
+  }
+
+  .margin-note .label {
+    font-variant: small-caps;
+    letter-spacing: 2px;
+    color: var(--gold-dk);
+    font-size: 0.9em;
+    margin-bottom: 4px;
+  }
+
+  .margin-note .score-val {
+    font-size: 1.8em;
+    color: var(--burgundy);
+    font-weight: normal;
+  }
+
+  .margin-note .score-bar {
+    height: 4px;
+    background: var(--parchment-dk);
+    margin-top: 6px;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .margin-note .score-bar .fill {
+    height: 100%;
+    background: var(--gold);
+    border-radius: 2px;
+    transition: width 1.2s ease;
+  }
+
+  /* ===== THE BOOK (central content) ===== */
+  .book {
+    padding: 0 40px;
+  }
+
+  .chapter {
+    padding: 48px 20px;
+    border-bottom: 1px solid rgba(201, 162, 39, 0.2);
+    position: relative;
+    animation: fadeChapterIn 0.6s ease;
+  }
+
+  @keyframes fadeChapterIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .chapter-number {
+    font-variant: small-caps;
+    letter-spacing: 4px;
+    color: var(--gold);
+    font-size: 0.82em;
+    margin-bottom: 8px;
+  }
+
+  .chapter h2 {
+    font-size: 1.8em;
+    font-weight: normal;
+    color: var(--burgundy);
+    margin-bottom: 16px;
+    line-height: 1.3;
+  }
+
+  .chapter p {
+    margin-bottom: 14px;
+    text-align: justify;
+    hyphens: auto;
+  }
+
+  .chapter .motif-tag {
+    display: inline-block;
+    font-size: 0.78em;
+    padding: 2px 10px;
+    border: 1px solid var(--gold);
+    color: var(--gold-dk);
+    margin: 2px 4px 2px 0;
+    cursor: pointer;
+    transition: all 0.3s;
+    background: transparent;
+    font-family: inherit;
+  }
+  .chapter .motif-tag:hover,
+  .chapter .motif-tag.active {
+    background: var(--gold);
+    color: var(--cream);
+  }
+
+  .chapter-meta {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px dashed rgba(201, 162, 39, 0.3);
+    font-size: 0.82em;
+    color: var(--ink-lt);
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .chapter-meta span {
+    white-space: nowrap;
+  }
+
+  .tension-marker {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.82em;
+    color: var(--red-thread);
+    padding: 3px 10px;
+    border: 1px dashed var(--red-thread);
+    margin-top: 12px;
+    cursor: pointer;
+    transition: background 0.3s;
+    background: transparent;
+    font-family: inherit;
+  }
+  .tension-marker:hover {
+    background: rgba(176, 48, 64, 0.06);
+  }
+
+  .tension-detail {
+    display: none;
+    margin-top: 10px;
+    padding: 14px 18px;
+    background: rgba(176, 48, 64, 0.04);
+    border-left: 3px solid var(--red-thread);
+    font-size: 0.92em;
+    color: var(--ink);
+    line-height: 1.7;
+  }
+  .tension-detail.visible { display: block; }
+
+  /* Page-like alternating tones */
+  .chapter:nth-child(odd)  { background: var(--cream); }
+  .chapter:nth-child(even) { background: var(--parchment-lt); }
+
+  /* ===== SECTION HEADERS ===== */
+  .section-header {
+    text-align: center;
+    padding: 48px 20px 20px;
+    position: relative;
+  }
+
+  .section-header h2 {
+    font-size: 1.5em;
+    font-weight: normal;
+    color: var(--burgundy);
+    letter-spacing: 3px;
+    font-variant: small-caps;
+  }
+  .section-header .ornament {
+    color: var(--gold);
+    font-size: 1.2em;
+    margin-top: 6px;
+    letter-spacing: 8px;
+  }
+
+  /* ===== MOTIF SIDEBAR (overlay) ===== */
+  .motif-panel {
+    position: fixed;
+    top: 60px;
+    right: -380px;
+    width: 360px;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+    background: var(--cream);
+    border-left: 2px solid var(--gold);
+    box-shadow: -4px 0 24px var(--shadow);
+    z-index: 200;
+    padding: 28px 24px;
+    transition: right 0.4s ease;
+  }
+  .motif-panel.open { right: 0; }
+
+  .motif-panel h3 {
+    font-size: 1.1em;
+    color: var(--burgundy);
+    font-weight: normal;
+    font-variant: small-caps;
+    letter-spacing: 2px;
+    margin-bottom: 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .motif-panel .close-btn {
+    background: none;
+    border: 1px solid var(--gold);
+    color: var(--gold-dk);
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 1em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+  }
+  .motif-panel .close-btn:hover {
+    background: var(--gold);
+    color: var(--cream);
+  }
+
+  .motif-entry {
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(201, 162, 39, 0.2);
+    cursor: pointer;
+    transition: padding-left 0.2s;
+  }
+  .motif-entry:hover { padding-left: 8px; }
+
+  .motif-entry .motif-name {
+    color: var(--burgundy);
+    font-size: 0.95em;
+    margin-bottom: 4px;
+  }
+
+  .motif-entry .motif-strength {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78em;
+    color: var(--ink-lt);
+    margin-bottom: 4px;
+  }
+
+  .motif-strength-bar {
+    flex: 1;
+    height: 3px;
+    background: var(--parchment-dk);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .motif-strength-bar .fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold-dk), var(--gold-lt));
+    transition: width 0.6s ease;
+  }
+
+  .motif-entry .motif-desc {
+    font-size: 0.78em;
+    font-style: italic;
+    color: var(--ink-lt);
+  }
+
+  .motif-entry .motif-chapters {
+    font-size: 0.72em;
+    color: var(--gold-dk);
+    margin-top: 4px;
+    display: none;
+  }
+  .motif-entry.expanded .motif-chapters { display: block; }
+
+  .motif-glow {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--gold);
+    margin-right: 6px;
+    vertical-align: middle;
+    box-shadow: 0 0 6px var(--gold);
+    animation: glowPulse 2s ease-in-out infinite;
+  }
+  @keyframes glowPulse {
+    0%, 100% { box-shadow: 0 0 4px var(--gold); }
+    50% { box-shadow: 0 0 12px var(--gold-lt); }
+  }
+
+  /* ===== TENSION MAP ===== */
+  .tension-map {
+    padding: 40px 20px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .tension-card {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+    margin-bottom: 16px;
+    background: var(--cream);
+    border: 1px solid rgba(176, 48, 64, 0.2);
+    border-left: 4px solid var(--red-thread);
+    cursor: pointer;
+    transition: box-shadow 0.3s;
+    position: relative;
+  }
+  .tension-card:hover {
+    box-shadow: 0 2px 12px rgba(176, 48, 64, 0.1);
+  }
+
+  .tension-card .red-thread-icon {
+    color: var(--red-thread);
+    font-size: 1.4em;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .tension-card .tension-title {
+    color: var(--burgundy);
+    font-size: 1em;
+    margin-bottom: 6px;
+  }
+
+  .tension-card .tension-chapters {
+    font-size: 0.82em;
+    color: var(--ink-lt);
+    margin-bottom: 6px;
+  }
+
+  .tension-card .tension-narrative {
+    font-size: 0.88em;
+    font-style: italic;
+    color: var(--ink);
+    line-height: 1.7;
+    display: none;
+  }
+  .tension-card.expanded .tension-narrative { display: block; }
+
+  .tension-card .severity {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    font-size: 0.68em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 2px 8px;
+    border: 1px solid;
+  }
+  .severity.critical { color: var(--red-thread); border-color: var(--red-thread); }
+  .severity.moderate { color: var(--arc-orange); border-color: var(--arc-orange); }
+  .severity.minor { color: var(--gold-dk); border-color: var(--gold-dk); }
+
+  /* ===== STORY ARC VISUALIZATION ===== */
+  .arc-viz {
+    padding: 40px 20px 50px;
+    max-width: 1000px;
+    margin: 0 auto;
+    position: relative;
+    overflow-x: auto;
+  }
+
+  .arc-timeline {
+    position: relative;
+    min-height: 220px;
+    padding-top: 40px;
+  }
+
+  .arc-lane {
+    position: relative;
+    height: 40px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+  }
+
+  .arc-label {
+    width: 130px;
+    flex-shrink: 0;
+    font-size: 0.78em;
+    font-variant: small-caps;
+    letter-spacing: 1px;
+    color: var(--ink-lt);
+    text-align: right;
+    padding-right: 14px;
+  }
+
+  .arc-track {
+    flex: 1;
+    height: 4px;
+    background: var(--parchment-dk);
+    border-radius: 2px;
+    position: relative;
+  }
+
+  .arc-segment {
+    position: absolute;
+    height: 4px;
+    border-radius: 2px;
+    top: 0;
+    transition: height 0.3s, top 0.3s;
+    cursor: pointer;
+  }
+  .arc-segment:hover {
+    height: 10px;
+    top: -3px;
+  }
+
+  .arc-node {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    top: -4px;
+    transform: translateX(-6px);
+    cursor: pointer;
+    border: 2px solid var(--cream);
+    transition: transform 0.2s;
+    z-index: 2;
+  }
+  .arc-node:hover {
+    transform: translateX(-6px) scale(1.4);
+  }
+
+  .arc-chapter-markers {
+    flex: 1;
+    display: flex;
+    position: relative;
+    height: 20px;
+  }
+
+  .arc-chapter-num {
+    position: absolute;
+    font-size: 0.62em;
+    color: var(--ink-lt);
+    top: 0;
+    transform: translateX(-50%);
+  }
+
+  .arc-legend {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+
+  .arc-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78em;
+    color: var(--ink-lt);
+  }
+
+  .arc-legend-swatch {
+    width: 20px;
+    height: 4px;
+    border-radius: 2px;
+  }
+
+  /* ===== LIVE MEMORY DEMO ===== */
+  .demo-section {
+    padding: 48px 20px;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .demo-input-area {
+    position: relative;
+    margin-bottom: 24px;
+  }
+
+  .demo-input-area textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 16px 18px;
+    font-family: inherit;
+    font-size: 0.95em;
+    line-height: 1.6;
+    background: var(--cream);
+    border: 1px solid var(--gold);
+    color: var(--ink);
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.3s;
+  }
+  .demo-input-area textarea:focus {
+    border-color: var(--burgundy);
+  }
+  .demo-input-area textarea::placeholder {
+    color: var(--ink-lt);
+    font-style: italic;
+  }
+
+  .demo-btn {
+    display: inline-block;
+    padding: 10px 28px;
+    font-family: inherit;
+    font-size: 0.88em;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--cream);
+    background: var(--burgundy);
+    border: none;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  .demo-btn:hover { background: var(--burgundy-dk); }
+  .demo-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .demo-output {
+    margin-top: 20px;
+  }
+
+  .demo-chapter {
+    padding: 24px;
+    background: var(--cream);
+    border: 1px solid rgba(201, 162, 39, 0.3);
+    margin-bottom: 16px;
+    animation: typewriterFade 0.8s ease;
+  }
+
+  @keyframes typewriterFade {
+    from { opacity: 0; max-height: 0; }
+    to { opacity: 1; max-height: 600px; }
+  }
+
+  .demo-chapter .dc-title {
+    font-size: 1.1em;
+    color: var(--burgundy);
+    margin-bottom: 8px;
+  }
+
+  .demo-chapter .dc-narrative {
+    font-style: italic;
+    margin-bottom: 10px;
+    color: var(--ink);
+    line-height: 1.7;
+  }
+
+  .demo-chapter .dc-motifs {
+    margin-bottom: 8px;
+  }
+
+  .demo-chapter .dc-tension {
+    font-size: 0.88em;
+    color: var(--red-thread);
+    padding: 6px 10px;
+    border-left: 2px solid var(--red-thread);
+    background: rgba(176, 48, 64, 0.03);
+    margin-top: 10px;
+  }
+
+  .demo-chapter .dc-colophon {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(201, 162, 39, 0.3);
+    font-size: 0.78em;
+    color: var(--ink-lt);
+  }
+
+  /* ===== WORKSHOP SECTION ===== */
+  .workshop {
+    padding: 40px 20px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .workshop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-top: 24px;
+  }
+
+  .agent-card {
+    padding: 24px 20px;
+    background: var(--cream);
+    border: 1px solid rgba(201, 162, 39, 0.3);
+    text-align: center;
+    transition: transform 0.3s, box-shadow 0.3s;
+  }
+  .agent-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px var(--shadow);
+  }
+
+  .agent-card .agent-icon {
+    font-size: 2em;
+    margin-bottom: 10px;
+    color: var(--gold);
+  }
+
+  .agent-card .agent-name {
+    font-size: 1.1em;
+    color: var(--burgundy);
+    margin-bottom: 4px;
+    font-variant: small-caps;
+    letter-spacing: 1px;
+  }
+
+  .agent-card .agent-role {
+    font-size: 0.82em;
+    color: var(--ink-lt);
+    font-style: italic;
+    margin-bottom: 10px;
+  }
+
+  .agent-card .agent-desc {
+    font-size: 0.82em;
+    color: var(--ink);
+    line-height: 1.6;
+  }
+
+  /* ===== SCORE BREAKDOWN ===== */
+  .score-section {
+    padding: 40px 20px;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  .score-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-top: 20px;
+  }
+
+  .score-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--cream);
+    border: 1px solid rgba(201, 162, 39, 0.2);
+    font-size: 0.88em;
+  }
+
+  .score-item .si-label {
+    color: var(--ink-lt);
+    font-variant: small-caps;
+    letter-spacing: 1px;
+  }
+
+  .score-item .si-value {
+    color: var(--burgundy);
+    font-size: 1.15em;
+  }
+
+  .total-score {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 18px;
+    background: var(--burgundy);
+    color: var(--cream);
+    font-size: 1.2em;
+    letter-spacing: 2px;
+    font-variant: small-caps;
+  }
+
+  .total-score .big-num {
+    font-size: 2em;
+    display: block;
+    margin-top: 4px;
+    letter-spacing: 0;
+  }
+
+  /* ===== FOOTER ===== */
+  .footer {
+    text-align: center;
+    padding: 40px 20px 60px;
+    border-top: 1px solid var(--gold);
+    background: linear-gradient(180deg, var(--parchment) 0%, var(--parchment-dk) 100%);
+  }
+
+  .footer .colophon-title {
+    font-variant: small-caps;
+    letter-spacing: 3px;
+    color: var(--gold-dk);
+    font-size: 0.82em;
+    margin-bottom: 12px;
+  }
+
+  .footer p {
+    font-size: 0.88em;
+    color: var(--ink-lt);
+    max-width: 600px;
+    margin: 0 auto 8px;
+    line-height: 1.7;
+  }
+
+  .footer .closing-quote {
+    font-style: italic;
+    color: var(--burgundy-lt);
+    margin-top: 24px;
+    font-size: 0.95em;
+  }
+
+  /* ===== TOGGLE BUTTONS ===== */
+  .panel-toggle {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 150;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .panel-toggle button {
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--gold);
+    background: var(--cream);
+    color: var(--burgundy);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 1em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+    box-shadow: 0 2px 8px var(--shadow);
+  }
+  .panel-toggle button:hover {
+    background: var(--gold);
+    color: var(--cream);
+  }
+  .panel-toggle button.active {
+    background: var(--burgundy);
+    color: var(--cream);
+    border-color: var(--burgundy);
+  }
+
+  .panel-toggle button .btn-tooltip {
+    position: absolute;
+    right: 54px;
+    background: var(--ink);
+    color: var(--cream);
+    font-size: 0.68em;
+    letter-spacing: 1px;
+    padding: 4px 10px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    text-transform: uppercase;
+  }
+  .panel-toggle button:hover .btn-tooltip { opacity: 1; }
+
+  /* ===== DROP CAP ===== */
+  .drop-cap::first-letter {
+    font-size: 3.2em;
+    float: left;
+    line-height: 0.8;
+    margin-right: 8px;
+    margin-top: 4px;
+    color: var(--burgundy);
+  }
+
+  /* ===== CONCEPT CARDS ===== */
+  .concepts {
+    padding: 40px 20px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .concept-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 18px;
+    margin-top: 20px;
+  }
+
+  .concept-card {
+    padding: 22px 20px;
+    background: var(--cream);
+    border: 1px solid rgba(201, 162, 39, 0.25);
+    border-top: 3px solid var(--gold);
+    position: relative;
+  }
+
+  .concept-card h4 {
+    font-size: 1em;
+    color: var(--burgundy);
+    font-weight: normal;
+    margin-bottom: 8px;
+    font-variant: small-caps;
+    letter-spacing: 1px;
+  }
+
+  .concept-card p {
+    font-size: 0.85em;
+    color: var(--ink);
+    line-height: 1.65;
+  }
+
+  /* ===== UTILITY ===== */
+  .hidden { display: none !important; }
+
+  .separator {
+    text-align: center;
+    padding: 20px 0;
+    color: var(--gold);
+    font-size: 1.4em;
+    letter-spacing: 12px;
+    opacity: 0.5;
+  }
+
+  .faded { opacity: 0.5; transition: opacity 0.3s; }
+  .faded:hover { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="header">
+  <div class="header-ornament">&#10043; &#10043; &#10043;</div>
+  <h1>Loom &amp; Verse</h1>
+  <div class="subtitle">Fashion Design &mdash; Literary Textile Art</div>
+  <div class="org-badge">Org 084 &middot; Rank #2 &middot; Score 89.1 / 100</div>
+  <div class="epigraph">
+    &ldquo;Every garment is a chapter. Every stitch is a word.&rdquo;
+    <span class="attribution">&mdash; Founding Principle</span>
+  </div>
+</header>
+
+<!-- ===== NAV ===== -->
+<nav class="nav" id="nav">
+  <a href="#the-book">The Book</a>
+  <a href="#motifs-section">Motifs</a>
+  <a href="#tensions-section">Tensions</a>
+  <a href="#arcs-section">Story Arcs</a>
+  <a href="#demo-section">Live Demo</a>
+  <a href="#workshop-section">Workshop</a>
+  <a href="#score-section">Scoring</a>
+</nav>
+
+<!-- ===== MAIN 3-COL LAYOUT ===== -->
+<div class="main-layout">
+
+  <!-- Left Marginalia: Score Breakdown -->
+  <aside class="marginalia-left">
+    <div class="margin-note">
+      <div class="label">Overall</div>
+      <div class="score-val">89.1</div>
+      <div class="score-bar"><div class="fill" style="width:89.1%"></div></div>
+    </div>
+    <div class="margin-note">
+      <div class="label">Architecture</div>
+      <div class="score-val" style="font-size:1.3em">18.2 / 20</div>
+      <div class="score-bar"><div class="fill" style="width:91%"></div></div>
+    </div>
+    <div class="margin-note">
+      <div class="label">AI Interface</div>
+      <div class="score-val" style="font-size:1.3em">13.5 / 15</div>
+      <div class="score-bar"><div class="fill" style="width:90%"></div></div>
+    </div>
+    <div class="margin-note">
+      <div class="label">Agent Design</div>
+      <div class="score-val" style="font-size:1.3em">18.6 / 20</div>
+      <div class="score-bar"><div class="fill" style="width:93%"></div></div>
+    </div>
+    <div class="margin-note">
+      <div class="label">Coordination</div>
+      <div class="score-val" style="font-size:1.3em">8.2 / 10</div>
+      <div class="score-bar"><div class="fill" style="width:82%"></div></div>
+    </div>
+    <div class="margin-note">
+      <div class="label">Memory</div>
+      <div class="score-val" style="font-size:1.3em">17.8 / 20</div>
+      <div class="score-bar"><div class="fill" style="width:89%"></div></div>
+    </div>
+    <div class="margin-note">
+      <div class="label">Identity</div>
+      <div class="score-val" style="font-size:1.3em">4.5 / 5</div>
+      <div class="score-bar"><div class="fill" style="width:90%"></div></div>
+    </div>
+    <div class="margin-note">
+      <div class="label">Token Budget</div>
+      <div class="score-val" style="font-size:1.3em">8.3 / 10</div>
+      <div class="score-bar"><div class="fill" style="width:83%"></div></div>
+    </div>
+  </aside>
+
+  <!-- Central Book -->
+  <main class="book" id="the-book">
+    <div class="section-header">
+      <h2>The Book of Narrative Memory</h2>
+      <div class="ornament">&#8226; &#8226; &#8226;</div>
+    </div>
+
+    <!-- Chapter I -->
+    <article class="chapter" data-chapter="1" data-motifs="narrative-structure,memory-as-story,thematic-retrieval">
+      <div class="chapter-number">Chapter I</div>
+      <h2>In the Beginning Was the Story</h2>
+      <p class="drop-cap">Memory is not a database. It is a story. When an agent needs to remember something, the relevant question is not &ldquo;what is the value at key X?&rdquo; but &ldquo;what happened in the chapter where X was introduced, and how does that chapter connect to the current chapter?&rdquo;</p>
+      <p>Loom &amp; Verse proposes a <code>but-ai</code> plugin built on this principle. Every task adds a chapter. Recurring themes emerge as <em>motifs</em> &mdash; retrieval anchors that capture thematic resonance, not just keyword overlap. Contradictions between memories create <em>dramatic tension</em> that the system flags for resolution rather than silently overwriting.</p>
+      <p>Compaction produces chapter summaries that preserve thematic content even when specific details are lost. Like summarizing a novel: you lose the prose but keep the plot, the characters, and the themes.</p>
+      <div>
+        <button class="motif-tag" onclick="highlightMotif('narrative-structure')">narrative-structure</button>
+        <button class="motif-tag" onclick="highlightMotif('memory-as-story')">memory-as-story</button>
+        <button class="motif-tag" onclick="highlightMotif('thematic-retrieval')">thematic-retrieval</button>
+      </div>
+      <div class="chapter-meta">
+        <span>Arc: <strong>Foundation</strong></span>
+        <span>Author: Brenner</span>
+        <span>Setting: The Reading Group, Marfa 2018</span>
+      </div>
+    </article>
+
+    <!-- Chapter II -->
+    <article class="chapter" data-chapter="2" data-motifs="chapter-lifecycle,workshop-model,iterative-drafting">
+      <div class="chapter-number">Chapter II</div>
+      <h2>The Literary Workshop</h2>
+      <p class="drop-cap">Four agents form the workshop. Orozco writes &mdash; she is the Author, the one who generates patches from task descriptions. Brenner edits &mdash; she shapes memory into coherent narrative, identifies motifs, and maintains the story&rsquo;s continuity. Sato checks for contradictions &mdash; the Continuity Editor who ensures that new work does not contradict existing chapters. Hartmann publishes &mdash; the Publisher who coordinates across repositories.</p>
+      <p>Every task follows a chapter lifecycle: <em>Premise, Outline, Draft, Revision, Continuity, Editing, Publication</em>. The workshop is iterative, not linear. Orozco may start drafting while Brenner is still identifying thematic connections, and Sato may flag a continuity issue that sends Orozco back to the draft.</p>
+      <div>
+        <button class="motif-tag" onclick="highlightMotif('chapter-lifecycle')">chapter-lifecycle</button>
+        <button class="motif-tag" onclick="highlightMotif('workshop-model')">workshop-model</button>
+        <button class="motif-tag" onclick="highlightMotif('iterative-drafting')">iterative-drafting</button>
+      </div>
+      <div class="chapter-meta">
+        <span>Arc: <strong>Architecture</strong></span>
+        <span>Author: Orozco</span>
+        <span>Setting: crates/but-ai/</span>
+      </div>
+    </article>
+
+    <!-- Chapter III -->
+    <article class="chapter" data-chapter="3" data-motifs="motif-resonance,security-boundary,thematic-retrieval">
+      <div class="chapter-number">Chapter III</div>
+      <h2>Motifs as Retrieval Anchors</h2>
+      <p class="drop-cap">Retrieval is not key lookup. It is thematic resonance. When a theme appears in three or more chapters, Brenner creates a motif entry. Each motif records its first appearance, every chapter where it surfaces, and the specific form it takes in each context.</p>
+      <p>The relevance scoring formula weights motif resonance at 30%, embedding similarity at 25%, arc relevance at 20%, recency at 15%, and tension urgency at 10%. This means a query about &ldquo;permission checking&rdquo; will resonate with the motif &ldquo;security-boundary&rdquo; even when the words do not overlap, because both belong to the same thematic cluster.</p>
+      <p>This is the key differentiator. Two chapters can be semantically different &mdash; one about authentication, one about database access &mdash; but thematically identical: both about security boundaries. Motif-based retrieval captures this.</p>
+      <div>
+        <button class="motif-tag" onclick="highlightMotif('motif-resonance')">motif-resonance</button>
+        <button class="motif-tag" onclick="highlightMotif('security-boundary')">security-boundary</button>
+        <button class="motif-tag" onclick="highlightMotif('thematic-retrieval')">thematic-retrieval</button>
+      </div>
+      <div class="chapter-meta">
+        <span>Arc: <strong>Memory</strong></span>
+        <span>Author: Brenner</span>
+        <span>Chapters in arc: 7</span>
+      </div>
+    </article>
+
+    <!-- Chapter IV -->
+    <article class="chapter" data-chapter="4" data-motifs="dramatic-tension,contradiction-detection,security-boundary">
+      <div class="chapter-number">Chapter IV</div>
+      <h2>Tensions That Demand Resolution</h2>
+      <p class="drop-cap">Contradictions are information, not errors. When Sato detects that a new chapter contradicts an earlier one &mdash; perhaps a session timeout of 30 minutes now conflicts with a long-running export that needs 45 &mdash; the system does not silently overwrite. It creates a <em>tension</em>.</p>
+      <p>Tensions have a lifecycle. They are created, they persist, they are resolved by future chapters, or they escalate. If a tension persists for more than fourteen days without resolution, it is flagged in every relevant task as an unresolved issue demanding attention. The narrative drives forward: unresolved tensions create dramatic pressure that biases the agent toward resolution.</p>
+      <button class="tension-marker" onclick="toggleTension(this)">
+        &#9888; Tension: Session timeout vs. long-running operations
+      </button>
+      <div class="tension-detail">
+        <strong>The Timeout Paradox:</strong> Chapter 38 established a 30-minute session timeout for security. Chapter 42 introduced an export operation that requires up to 45 minutes. These chapters contradict each other. The tension has been active for 6 days. Suggested resolution: implement activity-based timeout extension for export operations, preserving the security boundary while accommodating legitimate long operations.
+      </div>
+      <div>
+        <button class="motif-tag" onclick="highlightMotif('dramatic-tension')">dramatic-tension</button>
+        <button class="motif-tag" onclick="highlightMotif('contradiction-detection')">contradiction-detection</button>
+        <button class="motif-tag" onclick="highlightMotif('security-boundary')">security-boundary</button>
+      </div>
+      <div class="chapter-meta">
+        <span>Arc: <strong>Memory</strong></span>
+        <span>Author: Sato</span>
+        <span>Tensions active: 3</span>
+      </div>
+    </article>
+
+    <!-- Chapter V -->
+    <article class="chapter" data-chapter="5" data-motifs="arc-dormancy,compaction-survival,narrative-structure">
+      <div class="chapter-number">Chapter V</div>
+      <h2>Arcs, Dormancy, and the Art of Forgetting</h2>
+      <p class="drop-cap">Stories expire in arcs, not in isolated facts. When an arc has had no new chapters for thirty days, it enters dormancy. Brenner produces an arc summary that preserves motifs and active tensions, and the individual chapters are archived. The summary replaces them in active memory.</p>
+      <p>Motifs persist across arc dormancy. A motif that appeared in a dormant arc remains active and retrievable. This is how the narrative memory maintains long-term coherence: even when the specific details of old chapters are forgotten, the motifs they established continue to influence retrieval. Like a reader who has forgotten the sentences of Chapter 2 but remembers the feeling, the image, the recurring dream.</p>
+      <div>
+        <button class="motif-tag" onclick="highlightMotif('arc-dormancy')">arc-dormancy</button>
+        <button class="motif-tag" onclick="highlightMotif('compaction-survival')">compaction-survival</button>
+        <button class="motif-tag" onclick="highlightMotif('narrative-structure')">narrative-structure</button>
+      </div>
+      <div class="chapter-meta">
+        <span>Arc: <strong>Memory</strong></span>
+        <span>Author: Brenner</span>
+        <span>Dormant arcs: 2</span>
+      </div>
+    </article>
+
+    <!-- Chapter VI -->
+    <article class="chapter" data-chapter="6" data-motifs="correspondence,cross-repo,workshop-model">
+      <div class="chapter-number">Chapter VI</div>
+      <h2>Letters Between Authors</h2>
+      <p class="drop-cap">Cross-repository coordination is modeled as correspondence between authors. In literary history, many of the greatest works emerged from networks of writers exchanging letters, manuscripts, and critiques. Hartmann, the Publisher, maintains a correspondence log that tracks narrative threads across repositories.</p>
+      <p>Letters are structured JSON embedded in PR comments. Each letter carries the sender&rsquo;s identity, the arc and chapter reference, active motifs, and budget status. The schema is designed to be readable by humans (the letter format is intuitive) and parseable by machines. When a task in repo A depends on work in repo B, the correspondence log records the cross-repo arc, ensuring narrative continuity across repository boundaries.</p>
+      <div>
+        <button class="motif-tag" onclick="highlightMotif('correspondence')">correspondence</button>
+        <button class="motif-tag" onclick="highlightMotif('cross-repo')">cross-repo</button>
+        <button class="motif-tag" onclick="highlightMotif('workshop-model')">workshop-model</button>
+      </div>
+      <div class="chapter-meta">
+        <span>Arc: <strong>Coordination</strong></span>
+        <span>Author: Hartmann</span>
+        <span>Active correspondences: 4</span>
+      </div>
+    </article>
+
+    <!-- Chapter VII -->
+    <article class="chapter" data-chapter="7" data-motifs="colophon,identity,security-boundary">
+      <div class="chapter-number">Chapter VII</div>
+      <h2>The Colophon &mdash; Every Author Signs Their Work</h2>
+      <p class="drop-cap">In the tradition of hand-printed books, every Loom &amp; Verse garment ships with a Colophon Card sewn into the lining. This practice extends to software. Every patch, every commit message, every PR comment includes a colophon: the agent&rsquo;s identity, the arc and chapter reference, the motifs developed, the tensions introduced or resolved.</p>
+      <p>Agent identity uses OpenWallet-compatible key hierarchies. Each role has distinct signing authority: Authors may produce patches, Editors may modify memory, Continuity Checkers are read-only, Publishers may create cross-repo correspondence. A shared key would mean Brenner could sign patches, which violates the separation of literary roles.</p>
+      <div>
+        <button class="motif-tag" onclick="highlightMotif('colophon')">colophon</button>
+        <button class="motif-tag" onclick="highlightMotif('identity')">identity</button>
+        <button class="motif-tag" onclick="highlightMotif('security-boundary')">security-boundary</button>
+      </div>
+      <div class="chapter-meta">
+        <span>Arc: <strong>Identity</strong></span>
+        <span>Author: Hartmann</span>
+        <span>Keys issued: 4</span>
+      </div>
+    </article>
+
+    <div class="separator">&#8727; &#8727; &#8727;</div>
+  </main>
+
+  <!-- Right Marginalia: Collections & Quotes -->
+  <aside class="marginalia-right">
+    <div class="margin-note">
+      <div class="label">Philosophy</div>
+      <p style="font-style:italic;font-size:0.92em">&ldquo;A database retrieves facts. A story retrieves meaning.&rdquo;</p>
+    </div>
+    <div class="margin-note">
+      <div class="label">Collections</div>
+      <p style="font-size:0.88em">Calvino (2019)<br>Le Guin (2020)<br>Carter (2021)<br>Woolf (2022)<br>Borges (2023)<br>Dickinson (2024)</p>
+    </div>
+    <div class="margin-note">
+      <div class="label">Token Budget</div>
+      <p style="font-size:0.88em">~32,000 tokens per task<br>Lowest among peers</p>
+    </div>
+    <div class="margin-note">
+      <div class="label">Retrieval Formula</div>
+      <p style="font-size:0.82em">
+        30% motif resonance<br>
+        25% embedding similarity<br>
+        20% arc relevance<br>
+        15% recency<br>
+        10% tension urgency
+      </p>
+    </div>
+    <div class="margin-note">
+      <div class="label">WASI Mode</div>
+      <p style="font-size:0.88em">&ldquo;Unpublished manuscript&rdquo; &mdash; the story continues in isolation until constraints lift.</p>
+    </div>
+    <div class="margin-note">
+      <div class="label">The Pynchon Disaster</div>
+      <p style="font-size:0.88em;font-style:italic">&ldquo;Not every text can be worn.&rdquo; Three half-finished garments remain as a reminder.</p>
+    </div>
+  </aside>
+</div>
+
+<!-- ===== MOTIF TRACKER SECTION ===== -->
+<section id="motifs-section">
+  <div class="section-header">
+    <h2>The Motif Tracker</h2>
+    <div class="ornament">&#8226; &#8226; &#8226;</div>
+    <p style="max-width:600px;margin:12px auto 0;font-size:0.92em;color:var(--ink-lt)">
+      Recurring themes gain strength with repetition. Click a motif to trace its thread through the chapters.
+    </p>
+  </div>
+
+  <div class="concepts">
+    <div class="concept-grid" id="motif-grid">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+</section>
+
+<!-- ===== TENSION MAP ===== -->
+<section id="tensions-section">
+  <div class="section-header">
+    <h2>The Tension Map</h2>
+    <div class="ornament">&#8226; &#8226; &#8226;</div>
+    <p style="max-width:600px;margin:12px auto 0;font-size:0.92em;color:var(--ink-lt)">
+      Red threads connect contradicting chapters. Contradictions are information, not errors.
+    </p>
+  </div>
+
+  <div class="tension-map" id="tension-map">
+    <!-- Populated by JS -->
+  </div>
+</section>
+
+<!-- ===== STORY ARC VISUALIZATION ===== -->
+<section id="arcs-section">
+  <div class="section-header">
+    <h2>Story Arc Visualization</h2>
+    <div class="ornament">&#8226; &#8226; &#8226;</div>
+    <p style="max-width:600px;margin:12px auto 0;font-size:0.92em;color:var(--ink-lt)">
+      Arcs weave through chapters like threads through fabric. Hover to see how narrative threads connect.
+    </p>
+  </div>
+
+  <div class="arc-viz">
+    <div class="arc-timeline" id="arc-timeline">
+      <!-- Populated by JS -->
+    </div>
+    <div class="arc-legend" id="arc-legend"></div>
+  </div>
+</section>
+
+<!-- ===== CORE CONCEPTS ===== -->
+<section>
+  <div class="section-header">
+    <h2>The Five Elements of Narrative Memory</h2>
+    <div class="ornament">&#8226; &#8226; &#8226;</div>
+  </div>
+
+  <div class="concepts">
+    <div class="concept-grid">
+      <div class="concept-card">
+        <h4>Chapters</h4>
+        <p>Task executions stored as narrative entries. Each chapter has a setting, characters, plot, motifs, and tensions &mdash; a self-contained narrative unit embedded in the ongoing story.</p>
+      </div>
+      <div class="concept-card">
+        <h4>Motifs</h4>
+        <p>Recurring patterns that gain strength with repetition. When a theme appears in three or more chapters, it becomes a motif &mdash; a retrieval anchor that captures thematic resonance beyond keyword matching.</p>
+      </div>
+      <div class="concept-card">
+        <h4>Tensions</h4>
+        <p>Contradictions between memories that must be resolved, not silently overwritten. They escalate over time, creating dramatic pressure that biases the agent toward resolution.</p>
+      </div>
+      <div class="concept-card">
+        <h4>Arcs</h4>
+        <p>Long-running story threads connecting related tasks across time. Like the authentication arc or the deployment arc &mdash; thematic groupings that help retrieve relevant context.</p>
+      </div>
+      <div class="concept-card">
+        <h4>Summaries</h4>
+        <p>Compressed chapters that preserve meaning when details are lost. Motifs always survive. Tensions always survive. Specific details are sacrificed but remain reconstructible.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== LIVE MEMORY DEMO ===== -->
+<section id="demo-section">
+  <div class="section-header">
+    <h2>Live Memory Demo</h2>
+    <div class="ornament">&#8226; &#8226; &#8226;</div>
+    <p style="max-width:600px;margin:12px auto 0;font-size:0.92em;color:var(--ink-lt)">
+      Type a task description and watch the narrative engine generate a new chapter, identify motifs, and weave it into the story.
+    </p>
+  </div>
+
+  <div class="demo-section">
+    <div class="demo-input-area">
+      <textarea id="demo-input" placeholder="Describe a task... e.g., &quot;Add rate limiting to the API gateway to prevent abuse&quot;"></textarea>
+    </div>
+    <button class="demo-btn" id="demo-btn" onclick="generateChapter()">Write New Chapter</button>
+    <div class="demo-output" id="demo-output"></div>
+  </div>
+</section>
+
+<!-- ===== WORKSHOP ===== -->
+<section id="workshop-section">
+  <div class="section-header">
+    <h2>The Workshop</h2>
+    <div class="ornament">&#8226; &#8226; &#8226;</div>
+    <p style="max-width:600px;margin:12px auto 0;font-size:0.92em;color:var(--ink-lt)">
+      Four agents, organized as a literary workshop. Poets and weavers designing collections around literary themes.
+    </p>
+  </div>
+
+  <div class="workshop">
+    <div class="workshop-grid">
+      <div class="agent-card">
+        <div class="agent-icon">&#9998;</div>
+        <div class="agent-name">Ximena Orozco</div>
+        <div class="agent-role">Patch Weaver / Author</div>
+        <div class="agent-desc">The hand-weaver from Oaxaca. Generates patches &mdash; writes the text of each chapter. Concrete, iterative, material. &ldquo;A woven fabric is a story told in two directions.&rdquo;</div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-icon">&#128214;</div>
+        <div class="agent-name">Yael Brenner</div>
+        <div class="agent-role">Memory Narrator / Editor</div>
+        <div class="agent-desc">The poet from Chicago. Shapes memory into coherent narrative. Identifies motifs, tags themes, maintains the story&rsquo;s continuity across chapters and arcs.</div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-icon">&#128270;</div>
+        <div class="agent-name">Haruki Sato</div>
+        <div class="agent-role">Validator / Continuity Checker</div>
+        <div class="agent-desc">The costume designer from Tokyo. Catches contradictions between chapters. Validates that new work does not violate the established narrative. Read-only, annotates with continuity reports.</div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-icon">&#9993;</div>
+        <div class="agent-name">Kenji Hartmann</div>
+        <div class="agent-role">Coordinator / Publisher</div>
+        <div class="agent-desc">The former software engineer from Berlin turned bookbinder. Manages cross-repo correspondence and distribution. Letters between authors, dependency tracking, narrative continuity across boundaries.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SCORE BREAKDOWN ===== -->
+<section id="score-section">
+  <div class="section-header">
+    <h2>Scoring Colophon</h2>
+    <div class="ornament">&#8226; &#8226; &#8226;</div>
+  </div>
+
+  <div class="score-section">
+    <div class="score-grid">
+      <div class="score-item">
+        <span class="si-label">Plugin Architecture</span>
+        <span class="si-value">18.2 / 20</span>
+      </div>
+      <div class="score-item">
+        <span class="si-label">AI Interface</span>
+        <span class="si-value">13.5 / 15</span>
+      </div>
+      <div class="score-item">
+        <span class="si-label">Agent Design</span>
+        <span class="si-value">18.6 / 20</span>
+      </div>
+      <div class="score-item">
+        <span class="si-label">Coordination</span>
+        <span class="si-value">8.2 / 10</span>
+      </div>
+      <div class="score-item">
+        <span class="si-label">Memory &amp; Identity</span>
+        <span class="si-value">17.8 / 20</span>
+      </div>
+      <div class="score-item">
+        <span class="si-label">Signed Commits</span>
+        <span class="si-value">4.5 / 5</span>
+      </div>
+      <div class="score-item">
+        <span class="si-label">Token Budget</span>
+        <span class="si-value">8.3 / 10</span>
+      </div>
+      <div class="score-item" style="opacity:0"></div>
+      <div class="total-score">
+        Total Score
+        <span class="big-num">89.1 / 100</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<footer class="footer">
+  <div class="colophon-title">Colophon</div>
+  <p>This page presents the <code>but-ai</code> plugin proposal from <strong>Loom &amp; Verse</strong> (Org 084), a Fashion Design / Artist Commune that approaches agent memory as narrative. Ranked #2 with a score of 89.1/100.</p>
+  <p>The workshop: Orozco (Author), Brenner (Editor), Sato (Continuity), Hartmann (Publisher). Founded at a reading group in Marfa, Texas, 2018.</p>
+  <div class="closing-quote">
+    &ldquo;We do not write code. We weave texts. The difference is that a text knows it is being read.&rdquo;
+    <br><span style="font-size:0.85em;color:var(--ink-lt)">&mdash; Yael Brenner, Poet and Memory Architect</span>
+  </div>
+</footer>
+
+<!-- ===== FLOATING PANEL TOGGLE ===== -->
+<div class="panel-toggle">
+  <button onclick="toggleMotifPanel()" id="motif-panel-btn" title="Motif Tracker">
+    <span class="btn-tooltip">Motif Tracker</span>
+    M
+  </button>
+</div>
+
+<!-- ===== MOTIF SIDEBAR PANEL ===== -->
+<div class="motif-panel" id="motif-panel">
+  <h3>
+    Motif Tracker
+    <button class="close-btn" onclick="toggleMotifPanel()">&times;</button>
+  </h3>
+  <div id="motif-panel-list"></div>
+</div>
+
+<script>
+// ===================================================================
+// DATA
+// ===================================================================
+const MOTIFS = {
+  'narrative-structure': {
+    name: 'Narrative Structure',
+    desc: 'The principle that memory has plot, sequence, and thematic development',
+    chapters: [1, 5],
+    strength: 5
+  },
+  'memory-as-story': {
+    name: 'Memory as Story',
+    desc: 'The foundational belief that memory retrieves meaning, not just facts',
+    chapters: [1],
+    strength: 4
+  },
+  'thematic-retrieval': {
+    name: 'Thematic Retrieval',
+    desc: 'Finding memories by resonance with motifs rather than keyword matching',
+    chapters: [1, 3],
+    strength: 6
+  },
+  'chapter-lifecycle': {
+    name: 'Chapter Lifecycle',
+    desc: 'The seven phases: Premise, Outline, Draft, Revision, Continuity, Editing, Publication',
+    chapters: [2],
+    strength: 3
+  },
+  'workshop-model': {
+    name: 'Workshop Model',
+    desc: 'Four agents operating as a literary workshop with distinct roles',
+    chapters: [2, 6],
+    strength: 5
+  },
+  'iterative-drafting': {
+    name: 'Iterative Drafting',
+    desc: 'Writing through multiple drafts, each refined by different workshop members',
+    chapters: [2],
+    strength: 3
+  },
+  'motif-resonance': {
+    name: 'Motif Resonance',
+    desc: 'The ability of a motif to connect thematically distant chapters',
+    chapters: [3],
+    strength: 4
+  },
+  'security-boundary': {
+    name: 'Security Boundary',
+    desc: 'The boundary between trusted and untrusted contexts',
+    chapters: [3, 4, 7],
+    strength: 7
+  },
+  'dramatic-tension': {
+    name: 'Dramatic Tension',
+    desc: 'Contradictions that create pressure toward resolution',
+    chapters: [4],
+    strength: 5
+  },
+  'contradiction-detection': {
+    name: 'Contradiction Detection',
+    desc: 'Sato\'s role: finding where new chapters conflict with existing ones',
+    chapters: [4],
+    strength: 3
+  },
+  'arc-dormancy': {
+    name: 'Arc Dormancy',
+    desc: 'Arcs that go quiet are summarized, not deleted; motifs persist',
+    chapters: [5],
+    strength: 4
+  },
+  'compaction-survival': {
+    name: 'Compaction Survival',
+    desc: 'What survives when the context window is compressed: motifs, tensions, summaries',
+    chapters: [5],
+    strength: 5
+  },
+  'correspondence': {
+    name: 'Correspondence',
+    desc: 'Cross-repo coordination modeled as letters between authors',
+    chapters: [6],
+    strength: 3
+  },
+  'cross-repo': {
+    name: 'Cross-Repo Narrative',
+    desc: 'Story threads that span multiple repositories',
+    chapters: [6],
+    strength: 3
+  },
+  'colophon': {
+    name: 'Colophon',
+    desc: 'The signed document in every output, tracing authorship and narrative metadata',
+    chapters: [7],
+    strength: 4
+  },
+  'identity': {
+    name: 'Identity & Signing',
+    desc: 'Each agent has distinct keys and authorization scopes',
+    chapters: [7],
+    strength: 3
+  }
+};
+
+const TENSIONS = [
+  {
+    id: 'timeout-vs-longrun',
+    title: 'Session Timeout vs. Long-Running Operations',
+    chapterA: 3, chapterAName: 'Ch. III (Security Boundary)',
+    chapterB: 4, chapterBName: 'Ch. IV (Dramatic Tension)',
+    severity: 'moderate',
+    narrative: 'Chapter III established a 30-minute session timeout as part of the security boundary motif. Chapter IV introduced an export operation requiring up to 45 minutes. These chapters contradict each other. The tension has been active for 6 days. Brenner suggests: implement activity-based timeout extension for export operations, preserving the security boundary while accommodating legitimate long operations. The motif endures; only the implementation must flex.'
+  },
+  {
+    id: 'art-vs-function',
+    title: 'Art vs. Function (The Eternal Tension)',
+    chapterA: 1, chapterAName: 'Ch. I (Narrative Foundation)',
+    chapterB: 2, chapterBName: 'Ch. II (Workshop Pragmatics)',
+    severity: 'critical',
+    narrative: 'The commune\'s founding tension: Orozco and Sato care about the garment first (does the code work?), while Brenner and Hartmann care about the story first (does the narrative cohere?). This tension is not a bug. It is the engine of their best work. The Borges Collection resolved it perfectly. The Dickinson Collection did not. Both are instructive. This tension is by design: it should never be resolved, only balanced.'
+  },
+  {
+    id: 'isolation-vs-coordination',
+    title: 'WASI Isolation vs. Cross-Repo Coordination',
+    chapterA: 6, chapterAName: 'Ch. VI (Correspondence)',
+    chapterB: 5, chapterBName: 'Ch. V (Compaction)',
+    severity: 'minor',
+    narrative: 'Under WASI constraints, the plugin operates as an "unpublished manuscript" -- it can write new chapters but cannot publish or correspond with other authors. This means Hartmann\'s entire role is suspended. The story continues in isolation, accumulating chapters that will need reconciliation when the constraint lifts. The tension is minor because WASI is a temporary constraint, but it raises the question: what happens to narrative continuity when the publisher is absent?'
+  }
+];
+
+const ARCS = [
+  { name: 'Foundation', color: 'var(--burgundy)', chapters: [1], start: 0, end: 14 },
+  { name: 'Architecture', color: 'var(--arc-blue)', chapters: [2], start: 10, end: 28 },
+  { name: 'Memory', color: 'var(--arc-green)', chapters: [3, 4, 5], start: 22, end: 72 },
+  { name: 'Coordination', color: 'var(--arc-purple)', chapters: [6], start: 62, end: 82 },
+  { name: 'Identity', color: 'var(--arc-orange)', chapters: [7], start: 78, end: 100 }
+];
+
+// Task generation data
+const TASK_THEMES = {
+  'auth': { motifs: ['security-boundary', 'trust-verification'], arc: 'Authentication', tension: 'May introduce new trust boundaries that conflict with existing session assumptions.' },
+  'rate': { motifs: ['security-boundary', 'resource-management'], arc: 'Infrastructure', tension: 'Rate limits could conflict with batch operations that legitimately need high throughput.' },
+  'api': { motifs: ['interface-contract', 'cross-repo'], arc: 'API Design', tension: null },
+  'test': { motifs: ['iterative-drafting', 'contradiction-detection'], arc: 'Quality', tension: null },
+  'deploy': { motifs: ['compaction-survival', 'arc-dormancy'], arc: 'Deployment', tension: 'Deployment timing may conflict with active development arcs.' },
+  'refactor': { motifs: ['narrative-structure', 'chapter-lifecycle'], arc: 'Maintenance', tension: 'Refactoring may invalidate assumptions from earlier chapters.' },
+  'error': { motifs: ['dramatic-tension', 'contradiction-detection'], arc: 'Reliability', tension: 'New error handling may mask signals that earlier chapters rely on.' },
+  'cache': { motifs: ['memory-as-story', 'compaction-survival'], arc: 'Performance', tension: 'Caching introduces staleness that contradicts real-time consistency requirements.' },
+  'log': { motifs: ['narrative-structure', 'colophon'], arc: 'Observability', tension: null },
+  'user': { motifs: ['identity', 'security-boundary'], arc: 'User Management', tension: null },
+  'database': { motifs: ['security-boundary', 'compaction-survival'], arc: 'Data Layer', tension: 'Schema changes may contradict existing migration chapters.' },
+  'config': { motifs: ['chapter-lifecycle', 'workshop-model'], arc: 'Configuration', tension: null }
+};
+
+let chapterCounter = 7;
+let panelOpen = false;
+
+// ===================================================================
+// INITIALIZATION
+// ===================================================================
+document.addEventListener('DOMContentLoaded', function() {
+  renderMotifGrid();
+  renderMotifPanel();
+  renderTensionMap();
+  renderArcTimeline();
+});
+
+// ===================================================================
+// MOTIF GRID (main section)
+// ===================================================================
+function renderMotifGrid() {
+  const grid = document.getElementById('motif-grid');
+  grid.innerHTML = '';
+  const sortedMotifs = Object.entries(MOTIFS).sort((a, b) => b[1].strength - a[1].strength);
+
+  sortedMotifs.forEach(([id, m]) => {
+    const card = document.createElement('div');
+    card.className = 'concept-card';
+    card.style.cursor = 'pointer';
+    card.onclick = () => highlightMotif(id);
+    card.innerHTML = `
+      <h4><span class="motif-glow"></span> ${m.name}</h4>
+      <p>${m.desc}</p>
+      <div style="margin-top:10px">
+        <div class="motif-strength-bar" style="height:3px;background:var(--parchment-dk);border-radius:2px;overflow:hidden">
+          <div class="fill" style="width:${(m.strength / 7) * 100}%;height:100%;background:linear-gradient(90deg,var(--gold-dk),var(--gold-lt))"></div>
+        </div>
+        <div style="font-size:0.72em;color:var(--ink-lt);margin-top:4px">Strength: ${m.strength} &middot; Chapters: ${m.chapters.join(', ')}</div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+// ===================================================================
+// MOTIF PANEL (sidebar)
+// ===================================================================
+function renderMotifPanel() {
+  const list = document.getElementById('motif-panel-list');
+  list.innerHTML = '';
+  const sortedMotifs = Object.entries(MOTIFS).sort((a, b) => b[1].strength - a[1].strength);
+
+  sortedMotifs.forEach(([id, m]) => {
+    const entry = document.createElement('div');
+    entry.className = 'motif-entry';
+    entry.setAttribute('data-motif', id);
+    entry.onclick = () => {
+      entry.classList.toggle('expanded');
+      highlightMotif(id);
+    };
+    entry.innerHTML = `
+      <div class="motif-name"><span class="motif-glow"></span> ${m.name}</div>
+      <div class="motif-strength">
+        <span>Strength ${m.strength}</span>
+        <div class="motif-strength-bar"><div class="fill" style="width:${(m.strength / 7) * 100}%"></div></div>
+      </div>
+      <div class="motif-desc">${m.desc}</div>
+      <div class="motif-chapters">Appears in: ${m.chapters.map(c => 'Chapter ' + toRoman(c)).join(', ')}</div>
+    `;
+    list.appendChild(entry);
+  });
+}
+
+function toggleMotifPanel() {
+  panelOpen = !panelOpen;
+  document.getElementById('motif-panel').classList.toggle('open', panelOpen);
+  document.getElementById('motif-panel-btn').classList.toggle('active', panelOpen);
+}
+
+// ===================================================================
+// HIGHLIGHT MOTIF IN CHAPTERS
+// ===================================================================
+function highlightMotif(motifId) {
+  const motif = MOTIFS[motifId];
+  if (!motif) return;
+
+  // Reset all chapters
+  document.querySelectorAll('.chapter').forEach(ch => {
+    ch.style.boxShadow = 'none';
+    ch.style.borderLeft = 'none';
+  });
+
+  // Reset all motif tags
+  document.querySelectorAll('.motif-tag').forEach(tag => tag.classList.remove('active'));
+
+  // Highlight matching chapters
+  motif.chapters.forEach(chNum => {
+    const chEl = document.querySelector(`.chapter[data-chapter="${chNum}"]`);
+    if (chEl) {
+      chEl.style.boxShadow = 'inset 4px 0 0 var(--gold)';
+      chEl.style.borderLeft = '4px solid var(--gold)';
+      // Highlight matching tags in this chapter
+      chEl.querySelectorAll('.motif-tag').forEach(tag => {
+        if (tag.textContent.trim() === motifId) {
+          tag.classList.add('active');
+        }
+      });
+    }
+  });
+
+  // Open panel if not open
+  if (!panelOpen) toggleMotifPanel();
+
+  // Highlight in panel
+  document.querySelectorAll('.motif-entry').forEach(entry => {
+    if (entry.getAttribute('data-motif') === motifId) {
+      entry.classList.add('expanded');
+      entry.style.background = 'rgba(201, 162, 39, 0.08)';
+    } else {
+      entry.style.background = 'transparent';
+    }
+  });
+}
+
+// ===================================================================
+// TENSION MAP
+// ===================================================================
+function renderTensionMap() {
+  const map = document.getElementById('tension-map');
+  map.innerHTML = '';
+
+  TENSIONS.forEach(t => {
+    const card = document.createElement('div');
+    card.className = 'tension-card';
+    card.onclick = () => card.classList.toggle('expanded');
+    card.innerHTML = `
+      <div class="red-thread-icon">&#8734;</div>
+      <div style="flex:1">
+        <div class="tension-title">${t.title}</div>
+        <div class="tension-chapters">
+          <span style="color:var(--red-thread)">${t.chapterAName}</span>
+          &nbsp;&harr;&nbsp;
+          <span style="color:var(--red-thread)">${t.chapterBName}</span>
+        </div>
+        <div class="tension-narrative">${t.narrative}</div>
+      </div>
+      <span class="severity ${t.severity}">${t.severity}</span>
+    `;
+    map.appendChild(card);
+  });
+}
+
+// ===================================================================
+// STORY ARC VISUALIZATION
+// ===================================================================
+function renderArcTimeline() {
+  const timeline = document.getElementById('arc-timeline');
+  const legend = document.getElementById('arc-legend');
+  timeline.innerHTML = '';
+  legend.innerHTML = '';
+
+  // Chapter position markers at the top
+  const markerLane = document.createElement('div');
+  markerLane.className = 'arc-lane';
+  markerLane.innerHTML = '<div class="arc-label" style="color:var(--gold-dk)">Chapters</div>';
+  const markerTrack = document.createElement('div');
+  markerTrack.className = 'arc-track';
+  markerTrack.style.background = 'transparent';
+  markerTrack.style.position = 'relative';
+
+  for (let i = 1; i <= 7; i++) {
+    const pos = chapterPosition(i);
+    const marker = document.createElement('div');
+    marker.className = 'arc-chapter-num';
+    marker.style.position = 'absolute';
+    marker.style.left = pos + '%';
+    marker.style.top = '-2px';
+    marker.style.transform = 'translateX(-50%)';
+    marker.style.fontSize = '0.72em';
+    marker.style.color = 'var(--ink-lt)';
+    marker.textContent = toRoman(i);
+
+    const tick = document.createElement('div');
+    tick.style.position = 'absolute';
+    tick.style.left = pos + '%';
+    tick.style.top = '14px';
+    tick.style.width = '1px';
+    tick.style.height = '8px';
+    tick.style.background = 'var(--gold)';
+    tick.style.opacity = '0.4';
+
+    markerTrack.appendChild(marker);
+    markerTrack.appendChild(tick);
+  }
+  markerLane.appendChild(markerTrack);
+  timeline.appendChild(markerLane);
+
+  // Arc lanes
+  ARCS.forEach(arc => {
+    const lane = document.createElement('div');
+    lane.className = 'arc-lane';
+
+    const label = document.createElement('div');
+    label.className = 'arc-label';
+    label.textContent = arc.name;
+    label.style.color = arc.color;
+
+    const track = document.createElement('div');
+    track.className = 'arc-track';
+
+    // Arc segment
+    const seg = document.createElement('div');
+    seg.className = 'arc-segment';
+    seg.style.left = arc.start + '%';
+    seg.style.width = (arc.end - arc.start) + '%';
+    seg.style.background = arc.color;
+    seg.style.opacity = '0.6';
+    seg.title = arc.name + ' (Chapters: ' + arc.chapters.map(c => toRoman(c)).join(', ') + ')';
+    track.appendChild(seg);
+
+    // Chapter nodes
+    arc.chapters.forEach(ch => {
+      const node = document.createElement('div');
+      node.className = 'arc-node';
+      node.style.left = chapterPosition(ch) + '%';
+      node.style.background = arc.color;
+      node.title = 'Chapter ' + toRoman(ch);
+      node.onclick = (e) => {
+        e.stopPropagation();
+        const chEl = document.querySelector(`.chapter[data-chapter="${ch}"]`);
+        if (chEl) chEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      };
+      track.appendChild(node);
+    });
+
+    lane.appendChild(label);
+    lane.appendChild(track);
+    timeline.appendChild(lane);
+
+    // Legend
+    const legendItem = document.createElement('div');
+    legendItem.className = 'arc-legend-item';
+    legendItem.innerHTML = `<div class="arc-legend-swatch" style="background:${arc.color}"></div> ${arc.name}`;
+    legend.appendChild(legendItem);
+  });
+}
+
+function chapterPosition(ch) {
+  // Map chapters 1-7 to positions 7%-93%
+  return 7 + (ch - 1) * (86 / 6);
+}
+
+// ===================================================================
+// TENSION TOGGLE (inline in chapters)
+// ===================================================================
+function toggleTension(btn) {
+  const detail = btn.nextElementSibling;
+  if (detail) detail.classList.toggle('visible');
+}
+
+// ===================================================================
+// LIVE DEMO: GENERATE CHAPTER
+// ===================================================================
+function generateChapter() {
+  const input = document.getElementById('demo-input');
+  const output = document.getElementById('demo-output');
+  const btn = document.getElementById('demo-btn');
+  const task = input.value.trim();
+
+  if (!task) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Writing...';
+
+  // Simulate a brief "thinking" delay
+  setTimeout(() => {
+    chapterCounter++;
+
+    // Analyze task text for theme matching
+    const lowerTask = task.toLowerCase();
+    let matchedTheme = null;
+    let bestMatch = '';
+
+    for (const [keyword, theme] of Object.entries(TASK_THEMES)) {
+      if (lowerTask.includes(keyword)) {
+        matchedTheme = theme;
+        bestMatch = keyword;
+        break;
+      }
+    }
+
+    // Fallback theme
+    if (!matchedTheme) {
+      matchedTheme = {
+        motifs: ['narrative-structure', 'chapter-lifecycle'],
+        arc: 'Development',
+        tension: null
+      };
+    }
+
+    // Pick additional motif based on content patterns
+    const extraMotifs = [];
+    if (lowerTask.includes('fix') || lowerTask.includes('bug')) extraMotifs.push('contradiction-detection');
+    if (lowerTask.includes('add') || lowerTask.includes('new')) extraMotifs.push('iterative-drafting');
+    if (lowerTask.includes('secure') || lowerTask.includes('protect')) extraMotifs.push('security-boundary');
+
+    const allMotifs = [...new Set([...matchedTheme.motifs, ...extraMotifs])].slice(0, 4);
+
+    // Generate narrative text
+    const narratives = [
+      `In which ${getArticle(matchedTheme.arc)} arc takes an unexpected turn. The task arrives as a whisper from the codebase &mdash; a need for ${task.toLowerCase()}. Orozco examines the existing fabric, finds the threads that must be rewoven, and begins drafting. Brenner identifies thematic connections to earlier chapters.`,
+      `A new scene unfolds in the ${matchedTheme.arc} arc. The workshop convenes. Orozco reads the task aloud: &ldquo;${task}&rdquo;. Brenner nods &mdash; she has seen these motifs before, in chapters past. Sato opens the continuity ledger. The writing begins.`,
+      `The story demands a new chapter. The ${matchedTheme.arc} arc, which had been quiet, stirs again. ${task} &mdash; a task that echoes earlier themes. Orozco reaches for familiar thread, but this time the pattern will be different. The motifs resonate with what came before, but the execution must be new.`
+    ];
+    const narrative = narratives[Math.floor(Math.random() * narratives.length)];
+
+    // Build chapter HTML
+    const chapterHtml = document.createElement('div');
+    chapterHtml.className = 'demo-chapter';
+
+    let tensionHtml = '';
+    if (matchedTheme.tension) {
+      tensionHtml = `<div class="dc-tension"><strong>Tension introduced:</strong> ${matchedTheme.tension}</div>`;
+    }
+
+    chapterHtml.innerHTML = `
+      <div class="dc-title">Chapter ${toRoman(chapterCounter)}: ${capitalize(task.substring(0, 60))}${task.length > 60 ? '...' : ''}</div>
+      <div class="dc-narrative">${narrative}</div>
+      <div class="dc-motifs">
+        ${allMotifs.map(m => `<span class="motif-tag" style="cursor:default">${m}</span>`).join(' ')}
+      </div>
+      ${tensionHtml}
+      <div class="dc-colophon">
+        Arc: ${matchedTheme.arc} &middot; Author: Orozco &middot; Editor: Brenner &middot; Continuity: Sato &middot; Chapter ${chapterCounter}
+      </div>
+    `;
+
+    output.insertBefore(chapterHtml, output.firstChild);
+
+    // Update motif data
+    allMotifs.forEach(mid => {
+      if (MOTIFS[mid]) {
+        MOTIFS[mid].chapters.push(chapterCounter);
+        MOTIFS[mid].strength = Math.min(10, MOTIFS[mid].strength + 1);
+      } else {
+        MOTIFS[mid] = {
+          name: mid.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+          desc: 'A motif discovered in Chapter ' + toRoman(chapterCounter),
+          chapters: [chapterCounter],
+          strength: 2
+        };
+      }
+    });
+
+    renderMotifPanel();
+
+    btn.disabled = false;
+    btn.textContent = 'Write New Chapter';
+    input.value = '';
+  }, 800);
+}
+
+// ===================================================================
+// UTILITIES
+// ===================================================================
+function toRoman(num) {
+  const vals = [1000,900,500,400,100,90,50,40,10,9,5,4,1];
+  const syms = ['M','CM','D','CD','C','XC','L','XL','X','IX','V','IV','I'];
+  let result = '';
+  for (let i = 0; i < vals.length; i++) {
+    while (num >= vals[i]) { result += syms[i]; num -= vals[i]; }
+  }
+  return result;
+}
+
+function capitalize(s) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function getArticle(word) {
+  return 'aeiou'.includes(word.charAt(0).toLowerCase()) ? 'the ' + word : 'the ' + word;
+}
+
+// ===================================================================
+// SCROLL-BASED MOTIF HIGHLIGHTING
+// ===================================================================
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const ch = entry.target;
+      const motifStr = ch.getAttribute('data-motifs');
+      if (motifStr) {
+        const motifIds = motifStr.split(',');
+        // Pulse the glow for visible motifs in the panel
+        document.querySelectorAll('.motif-entry').forEach(me => {
+          const mid = me.getAttribute('data-motif');
+          if (motifIds.includes(mid)) {
+            me.querySelector('.motif-glow').style.boxShadow = '0 0 14px var(--gold-lt)';
+          }
+        });
+      }
+    } else {
+      // Reset glow
+      const ch = entry.target;
+      const motifStr = ch.getAttribute('data-motifs');
+      if (motifStr) {
+        const motifIds = motifStr.split(',');
+        document.querySelectorAll('.motif-entry').forEach(me => {
+          const mid = me.getAttribute('data-motif');
+          if (motifIds.includes(mid)) {
+            me.querySelector('.motif-glow').style.boxShadow = '';
+          }
+        });
+      }
+    }
+  });
+}, { threshold: 0.3 });
+
+document.querySelectorAll('.chapter').forEach(ch => observer.observe(ch));
+</script>
+
+</body>
+</html>

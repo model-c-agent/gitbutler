@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tidal Protocol Collective — Org 001</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0a192f;--deep:#06101f;--teal:#0d4f4f;--teal-light:#1a7a7a;
+  --brass:#d4a017;--brass-dim:#8b6914;--foam:#e0f0f0;--foam-dim:#8ab4b4;
+  --radar:#00ff88;--radar-dim:#007744;--red:#ff4444;--red-dim:#992222;
+  --water-dark:#081e2e;--water-mid:#0c3040;--water-light:#0d4050;
+  --white:#f0f8ff;--gray:#607080;
+}
+html{font-size:14px}
+body{background:var(--deep);color:var(--foam);font-family:'Courier New',monospace;overflow-x:hidden;min-height:100vh}
+h1,h2,h3,h4{font-family:'Trebuchet MS','Segoe UI',sans-serif;font-weight:700;color:var(--brass)}
+a{color:var(--brass);text-decoration:none}
+a:hover{color:var(--foam)}
+
+/* HEADER */
+.header{background:linear-gradient(180deg,var(--navy) 0%,var(--deep) 100%);border-bottom:2px solid var(--brass-dim);padding:1.5rem 2rem;display:flex;align-items:center;gap:2rem;flex-wrap:wrap}
+.header-badge{width:60px;height:60px;border:2px solid var(--brass);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:var(--brass);flex-shrink:0;background:var(--deep)}
+.header-info h1{font-size:1.8rem;letter-spacing:2px;text-transform:uppercase}
+.header-info .subtitle{color:var(--foam-dim);font-size:.85rem;margin-top:.3rem}
+.header-rank{margin-left:auto;text-align:right}
+.header-rank .rank{font-size:2rem;color:var(--brass);font-family:'Trebuchet MS',sans-serif;font-weight:700}
+.header-rank .score{color:var(--radar);font-size:1.1rem}
+
+/* NAV */
+.nav{display:flex;gap:0;border-bottom:1px solid var(--brass-dim);background:var(--navy);flex-wrap:wrap}
+.nav button{background:none;border:none;color:var(--foam-dim);padding:.8rem 1.5rem;font-family:'Courier New',monospace;font-size:.85rem;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.nav button:hover{color:var(--foam);background:rgba(13,79,79,.3)}
+.nav button.active{color:var(--brass);border-bottom-color:var(--brass);background:rgba(212,160,23,.08)}
+
+/* MAIN LAYOUT */
+.main{display:flex;flex-direction:column;min-height:calc(100vh - 140px)}
+.panel{display:none;flex:1;padding:0}
+.panel.active{display:flex;flex-direction:column}
+
+/* ===== HARBOR PANEL ===== */
+#harbor-panel{position:relative}
+.harbor-container{position:relative;width:100%;height:600px;background:var(--water-dark);overflow:hidden}
+.harbor-canvas{width:100%;height:100%;display:block}
+.harbor-overlay{position:absolute;top:10px;left:10px;background:rgba(6,16,31,.85);border:1px solid var(--brass-dim);border-radius:4px;padding:10px 14px;font-size:.75rem;color:var(--foam-dim);pointer-events:none}
+.harbor-overlay .label{color:var(--brass);font-weight:700;margin-bottom:4px}
+.harbor-legend{position:absolute;bottom:10px;left:10px;background:rgba(6,16,31,.85);border:1px solid var(--brass-dim);border-radius:4px;padding:10px 14px;display:flex;gap:16px;font-size:.7rem}
+.harbor-legend .item{display:flex;align-items:center;gap:6px}
+.harbor-legend .swatch{width:12px;height:12px;border-radius:2px}
+
+/* ===== TIDAL CLOCK PANEL ===== */
+.clock-panel{display:flex;gap:2rem;padding:2rem;flex-wrap:wrap;align-items:flex-start}
+.clock-container{flex:0 0 320px;display:flex;flex-direction:column;align-items:center}
+.clock-svg{width:300px;height:300px}
+.clock-label{margin-top:1rem;text-align:center}
+.clock-label .phase{font-size:1.4rem;color:var(--brass);font-family:'Trebuchet MS',sans-serif;font-weight:700}
+.clock-label .time{color:var(--foam-dim);font-size:.85rem;margin-top:.3rem}
+.tide-info{flex:1;min-width:300px}
+.tide-info h3{margin-bottom:1rem;font-size:1.2rem}
+.tide-bar{height:40px;background:var(--water-dark);border:1px solid var(--teal);border-radius:4px;overflow:hidden;position:relative;margin-bottom:1.5rem}
+.tide-fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--teal-light));transition:width 1s;position:relative}
+.tide-fill::after{content:'';position:absolute;right:0;top:0;bottom:0;width:20px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15))}
+.tide-marker{position:absolute;top:-6px;width:2px;height:calc(100% + 12px);background:var(--brass)}
+.consensus-windows{display:flex;flex-direction:column;gap:.8rem}
+.window-item{display:flex;align-items:center;gap:1rem;padding:.6rem .8rem;background:rgba(13,79,79,.15);border-left:3px solid var(--teal);border-radius:0 4px 4px 0}
+.window-item.open{border-left-color:var(--radar);background:rgba(0,255,136,.06)}
+.window-item.closed{border-left-color:var(--red-dim);opacity:.6}
+.window-item .status{width:8px;height:8px;border-radius:50%}
+.window-item .status.open{background:var(--radar);box-shadow:0 0 6px var(--radar)}
+.window-item .status.closed{background:var(--red-dim)}
+
+/* ===== MANIFEST VIEWER ===== */
+.manifest-panel{display:flex;gap:0;height:600px}
+.manifest-ships{width:220px;border-right:1px solid var(--brass-dim);overflow-y:auto;flex-shrink:0}
+.manifest-ships .ship-btn{width:100%;background:none;border:none;border-bottom:1px solid rgba(212,160,23,.15);color:var(--foam-dim);padding:.8rem 1rem;text-align:left;cursor:pointer;font-family:'Courier New',monospace;font-size:.8rem;transition:all .2s}
+.manifest-ships .ship-btn:hover{background:rgba(13,79,79,.3);color:var(--foam)}
+.manifest-ships .ship-btn.active{background:rgba(212,160,23,.1);color:var(--brass);border-left:3px solid var(--brass)}
+.manifest-ships .ship-btn .role{display:block;font-size:.65rem;color:var(--gray);margin-top:.2rem}
+.manifest-content{flex:1;overflow-y:auto;padding:1.5rem}
+.manifest-entry{background:rgba(13,79,79,.1);border:1px solid var(--teal);border-radius:4px;padding:1rem;margin-bottom:1rem;position:relative}
+.manifest-entry .cat{position:absolute;top:.6rem;right:.8rem;font-size:.65rem;padding:.2rem .5rem;border-radius:2px;text-transform:uppercase;letter-spacing:1px;font-weight:700}
+.manifest-entry .cat.pattern{background:rgba(0,255,136,.15);color:var(--radar)}
+.manifest-entry .cat.fact{background:rgba(212,160,23,.15);color:var(--brass)}
+.manifest-entry .cat.decision{background:rgba(100,149,237,.15);color:cornflowerblue}
+.manifest-entry .cat.error{background:rgba(255,68,68,.15);color:var(--red)}
+.manifest-entry .cat.identity{background:rgba(224,240,240,.1);color:var(--foam)}
+.manifest-entry h4{color:var(--foam);font-size:.9rem;margin-bottom:.5rem;padding-right:80px}
+.manifest-entry .body{font-size:.8rem;color:var(--foam-dim);line-height:1.5}
+.manifest-entry .meta{margin-top:.6rem;font-size:.7rem;color:var(--gray);display:flex;gap:1rem;flex-wrap:wrap}
+.manifest-entry .tags{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.4rem}
+.manifest-entry .tag{font-size:.6rem;padding:.15rem .4rem;background:rgba(212,160,23,.1);color:var(--brass-dim);border-radius:2px}
+.sync-animation{position:absolute;top:0;left:0;right:0;height:3px;overflow:hidden}
+.sync-bar{height:100%;width:60px;background:linear-gradient(90deg,transparent,var(--radar),transparent);animation:syncSlide 2s linear infinite}
+@keyframes syncSlide{0%{transform:translateX(-60px)}100%{transform:translateX(calc(100vw + 60px))}}
+
+/* ===== CONSENSUS DEMO ===== */
+.consensus-demo{padding:2rem}
+.consensus-grid{display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-top:1rem}
+@media(max-width:900px){.consensus-grid{grid-template-columns:1fr}}
+.proposal-card{background:rgba(13,79,79,.1);border:1px solid var(--teal);border-radius:6px;padding:1.5rem}
+.proposal-card h4{color:var(--brass);margin-bottom:.8rem;font-size:1rem}
+.vote-grid{display:flex;flex-direction:column;gap:.6rem;margin-top:1rem}
+.vote-row{display:flex;align-items:center;gap:1rem;padding:.5rem .6rem;background:rgba(6,16,31,.5);border-radius:4px}
+.vote-row .agent-name{width:60px;font-weight:700;color:var(--foam);font-size:.8rem}
+.vote-row .vote-status{flex:1;font-size:.75rem}
+.vote-row .vote-status.approve{color:var(--radar)}
+.vote-row .vote-status.reject{color:var(--red)}
+.vote-row .vote-status.pending{color:var(--gray)}
+.user-vote{margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--brass-dim)}
+.user-vote h4{margin-bottom:.8rem;font-size:.9rem}
+.vote-buttons{display:flex;gap:1rem}
+.vote-btn{padding:.5rem 1.5rem;border:1px solid;border-radius:4px;font-family:'Courier New',monospace;font-size:.8rem;cursor:pointer;transition:all .2s}
+.vote-btn.approve{background:rgba(0,255,136,.1);border-color:var(--radar-dim);color:var(--radar)}
+.vote-btn.approve:hover{background:rgba(0,255,136,.25)}
+.vote-btn.reject{background:rgba(255,68,68,.1);border-color:var(--red-dim);color:var(--red)}
+.vote-btn.reject:hover{background:rgba(255,68,68,.25)}
+.signal-log{background:var(--deep);border:1px solid var(--brass-dim);border-radius:6px;padding:1rem;max-height:400px;overflow-y:auto}
+.signal-log h4{margin-bottom:.8rem}
+.signal-entry{display:flex;gap:.8rem;padding:.4rem 0;border-bottom:1px solid rgba(212,160,23,.08);font-size:.75rem;align-items:flex-start}
+.signal-entry .ts{color:var(--gray);flex-shrink:0;width:55px}
+.signal-entry .flag{width:10px;height:10px;border-radius:2px;flex-shrink:0;margin-top:2px}
+.signal-entry .msg{color:var(--foam-dim);flex:1}
+.signal-entry .msg .from{color:var(--brass);font-weight:700}
+
+/* ===== FLEET DASHBOARD ===== */
+.dashboard{padding:1.5rem 2rem}
+.dashboard h3{margin-bottom:1.5rem}
+.fleet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem}
+.agent-card{background:linear-gradient(135deg,rgba(13,79,79,.12),rgba(6,16,31,.6));border:1px solid var(--teal);border-radius:6px;padding:1.2rem;position:relative;overflow:hidden}
+.agent-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--radar)}
+.agent-card.idle::before{background:var(--brass)}
+.agent-card.blocked::before{background:var(--red)}
+.agent-card .name{font-size:1.1rem;color:var(--brass);font-family:'Trebuchet MS',sans-serif;font-weight:700;margin-bottom:.2rem}
+.agent-card .role{font-size:.75rem;color:var(--foam-dim);margin-bottom:.8rem}
+.agent-card .stat{display:flex;justify-content:space-between;font-size:.75rem;padding:.2rem 0;border-bottom:1px solid rgba(13,79,79,.2)}
+.agent-card .stat .k{color:var(--gray)}
+.agent-card .stat .v{color:var(--foam)}
+.agent-card .stat .v.synced{color:var(--radar)}
+.agent-card .stat .v.stale{color:var(--red)}
+.agent-card .tide-check{margin-top:.8rem;padding:.6rem;background:rgba(6,16,31,.6);border-radius:4px;font-size:.7rem;line-height:1.5;color:var(--foam-dim)}
+.agent-card .tide-check .state{color:var(--radar);font-weight:700}
+.agent-card .tide-check .state.blocked{color:var(--red)}
+.agent-card .tide-check .state.idle{color:var(--brass)}
+
+/* ===== SCORING / SHIP'S LOG ===== */
+.scoring{padding:2rem}
+.log-book{background:linear-gradient(135deg,#1a1408,#0f0d06);border:2px solid var(--brass-dim);border-radius:6px;max-width:700px;padding:2rem;font-family:'Courier New',monospace;position:relative;overflow:hidden}
+.log-book::before{content:'';position:absolute;top:0;left:40px;bottom:0;width:1px;background:var(--brass-dim);opacity:.3}
+.log-book h3{color:var(--brass);margin-bottom:1.5rem;font-size:1.3rem;text-align:center;letter-spacing:3px;text-transform:uppercase}
+.log-entry{padding:.6rem 0 .6rem 55px;border-bottom:1px solid rgba(212,160,23,.1);font-size:.85rem;line-height:1.6}
+.log-entry .category{color:var(--brass);font-weight:700}
+.log-entry .score-val{color:var(--radar);font-weight:700;font-size:1rem}
+.log-entry .detail{color:var(--foam-dim);font-size:.75rem;margin-top:.2rem}
+.log-total{padding:1rem 0 0 55px;font-size:1.2rem;color:var(--brass);font-weight:700}
+.log-total .total-score{color:var(--radar);font-size:1.6rem}
+
+/* FOOTER */
+.footer{border-top:1px solid var(--brass-dim);padding:1rem 2rem;text-align:center;font-size:.7rem;color:var(--gray);background:var(--deep)}
+.footer .quote{font-style:italic;color:var(--foam-dim);margin-bottom:.3rem}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--deep)}
+::-webkit-scrollbar-thumb{background:var(--brass-dim);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--brass)}
+
+@media(max-width:700px){
+  .header{flex-direction:column;align-items:flex-start}
+  .header-rank{margin-left:0}
+  .manifest-panel{flex-direction:column;height:auto}
+  .manifest-ships{width:100%;border-right:none;border-bottom:1px solid var(--brass-dim);display:flex;overflow-x:auto}
+  .manifest-ships .ship-btn{min-width:120px}
+  .clock-panel{flex-direction:column;align-items:center}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-badge">&#9875;</div>
+  <div class="header-info">
+    <h1>Tidal Protocol Collective</h1>
+    <div class="subtitle">Org 001 &mdash; Maritime Logistics / Anarchist Collective &mdash; Manifest-Based Consensus Memory for <code>but-ai</code></div>
+  </div>
+  <div class="header-rank">
+    <div class="rank">Rank #3</div>
+    <div class="score">88.9 / 100</div>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav" id="nav">
+  <button class="active" data-panel="harbor-panel">&#9875; Harbor</button>
+  <button data-panel="clock-panel">&#9201; Tidal Clock</button>
+  <button data-panel="manifest-panel">&#128220; Manifests</button>
+  <button data-panel="consensus-panel">&#9878; Consensus</button>
+  <button data-panel="dashboard-panel">&#128674; Fleet Status</button>
+  <button data-panel="scoring-panel">&#128214; Ship's Log</button>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- HARBOR -->
+  <div class="panel active" id="harbor-panel">
+    <div class="harbor-container">
+      <canvas class="harbor-canvas" id="harborCanvas"></canvas>
+      <div class="harbor-overlay">
+        <div class="label">HARBOR VIEW &mdash; TOP DOWN</div>
+        <div id="harborInfo">5 agents active &bull; Click a ship for details</div>
+      </div>
+      <div class="harbor-legend">
+        <div class="item"><div class="swatch" style="background:var(--radar)"></div> Active</div>
+        <div class="item"><div class="swatch" style="background:var(--brass)"></div> Idle</div>
+        <div class="item"><div class="swatch" style="background:var(--red)"></div> Blocked</div>
+        <div class="item"><div class="swatch" style="background:#ff66ff"></div> Signal Flag</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIDAL CLOCK -->
+  <div class="panel" id="clock-panel">
+    <div class="clock-panel">
+      <div class="clock-container">
+        <svg class="clock-svg" id="tidalClockSvg" viewBox="0 0 300 300"></svg>
+        <div class="clock-label">
+          <div class="phase" id="tidePhase">Rising Tide</div>
+          <div class="time" id="tideTime">00:00 into cycle</div>
+        </div>
+      </div>
+      <div class="tide-info">
+        <h3>6-Hour Tide Cycle</h3>
+        <div class="tide-bar" style="position:relative">
+          <div class="tide-fill" id="tideFill" style="width:30%"></div>
+        </div>
+        <p style="font-size:.8rem;color:var(--foam-dim);margin-bottom:1.5rem">
+          All coordination uses a fixed 6-hour cycle. Decisions that cannot reach consensus within one tide are deferred. The tide is the clock &mdash; no agent can rush it, no agent can stop it.
+        </p>
+        <h3 style="margin-bottom:.8rem">Consensus Windows</h3>
+        <div class="consensus-windows" id="consensusWindows"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MANIFEST VIEWER -->
+  <div class="panel" id="manifest-panel">
+    <div class="manifest-panel">
+      <div class="sync-animation"><div class="sync-bar"></div></div>
+      <div class="manifest-ships" id="manifestShips"></div>
+      <div class="manifest-content" id="manifestContent">
+        <p style="color:var(--gray);padding:2rem;text-align:center">Select an agent to view their manifest entries.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONSENSUS DEMO -->
+  <div class="panel" id="consensus-panel">
+    <div class="consensus-demo">
+      <h3 style="margin-bottom:.5rem">Consensus Protocol Simulation</h3>
+      <p style="font-size:.8rem;color:var(--foam-dim);margin-bottom:1.5rem">Watch 5 ships negotiate a commit. No agent can unilaterally commit &mdash; patches require consensus validation from a quorum of 3.</p>
+      <div class="consensus-grid">
+        <div class="proposal-card">
+          <h4>Current Proposal</h4>
+          <div id="proposalInfo" style="font-size:.8rem;color:var(--foam-dim);line-height:1.5"></div>
+          <div class="vote-grid" id="voteGrid"></div>
+          <div class="user-vote">
+            <h4>Your Vote (as Observer)</h4>
+            <div class="vote-buttons">
+              <button class="vote-btn approve" id="btnApprove" onclick="userVote('approve')">APPROVE</button>
+              <button class="vote-btn reject" id="btnReject" onclick="userVote('reject')">REJECT</button>
+              <button class="vote-btn" style="border-color:var(--brass-dim);color:var(--brass);background:rgba(212,160,23,.08)" onclick="resetConsensus()">RESET</button>
+            </div>
+            <div id="voteResult" style="margin-top:.8rem;font-size:.85rem;font-weight:700"></div>
+          </div>
+        </div>
+        <div class="signal-log">
+          <h4>Signal Flag Log (PR Comments)</h4>
+          <div id="signalLog"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLEET DASHBOARD -->
+  <div class="panel" id="dashboard-panel">
+    <div class="dashboard">
+      <h3>Fleet Status Board</h3>
+      <div class="fleet-grid" id="fleetGrid"></div>
+    </div>
+  </div>
+
+  <!-- SCORING -->
+  <div class="panel" id="scoring-panel">
+    <div class="scoring">
+      <div class="log-book">
+        <h3>Ship's Log &mdash; Evaluation</h3>
+        <div id="scoringEntries"></div>
+        <div class="log-total">
+          GRAND TOTAL: <span class="total-score">88.9 / 100</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <div class="quote">"No harbormaster. The protocol is the authority." &mdash; Tidal Protocol Collective, 2026-03-28 (high tide, Rotterdam, +0.2m)</div>
+  <div>Org 001 &bull; Maritime Logistics / Anarchist Collective &bull; RFP Response for <code>but-ai</code> plugin</div>
+</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const AGENTS = [
+  {id:'dara',  name:'Dara',  role:'Patch Architect',        focus:'INDEX.patch generation, diff semantics',             state:'working',color:'#00ff88',x:0,y:0,angle:0,vx:0,vy:0,docked:false},
+  {id:'ines',  name:'Ines',  role:'Protocol Engineer',      focus:'Inter-agent communication, forge adapters',          state:'working',color:'#4488ff',x:0,y:0,angle:0,vx:0,vy:0,docked:false},
+  {id:'koel',  name:'Koel',  role:'Memory Specialist',      focus:'Agent memory, relevance scoring, Git ref storage',   state:'idle',   color:'#ffaa00',x:0,y:0,angle:0,vx:0,vy:0,docked:true},
+  {id:'sable', name:'Sable', role:'Security & Identity',    focus:'OpenWallet integration, commit signing',             state:'working',color:'#ff66ff',x:0,y:0,angle:0,vx:0,vy:0,docked:false},
+  {id:'raul',  name:'Raul',  role:'Provider Abstraction',   focus:'LLM provider interface, token budget management',   state:'blocked',color:'#ff4444',x:0,y:0,angle:0,vx:0,vy:0,docked:true}
+];
+
+const MANIFESTS = {
+  dara:[
+    {cat:'pattern',title:'Patch Generation Strategy',body:'Always produce unified diff with 3 lines of context per hunk. Multi-file patches ordered alphabetically by path. Never include timestamps in diff headers.',tags:['patch','diff','workflow'],ttl:'720h',access:12,tide:'high tide, Rotterdam, +0.3m'},
+    {cat:'decision',title:'Patch-Only Output Policy',body:'Agent never writes files directly. All output is INDEX.patch + COMMIT.msg. This prevents filesystem contention and enables atomic review. Adopted after the Liechtenstein Herring incident.',tags:['architecture','policy'],ttl:'2160h',access:28,tide:'low tide, Felixstowe, -0.1m'},
+    {cat:'fact',title:'WorkspaceToolset API Surface',body:'10 tools: Commit, CreateBranch, Amend, SquashCommits, GetProjectStatus, MoveFileChanges, GetCommitDetails, GetBranchChanges, SplitBranch, SplitCommit.',tags:['api','tools'],ttl:'168h',access:45,tide:'rising tide, Antwerp, +0.1m'},
+  ],
+  ines:[
+    {cat:'pattern',title:'PR Comment Schema',body:'HTML comments for machine parsing (type, from, to, timestamp, tide). Markdown body for human readability. Hybrid approach serves both audiences without degradation.',tags:['protocol','communication','PR'],ttl:'720h',access:34,tide:'falling tide, Rotterdam, -0.2m'},
+    {cat:'decision',title:'Forge Adapter Trait Design',body:'12 methods: create_pr, comment, list_comments, add_label, remove_label, list_labels, get_pr_body, pr_status, list_prs, cross_reference, resolve_ref, forge_type. Minimal for cross-repo coordination.',tags:['architecture','forge'],ttl:'2160h',access:19,tide:'high tide, Hamburg, +0.4m'},
+    {cat:'error',title:'GitLab Webhook Deserialization',body:'GitLab sends note events with `noteable_type` as a string, not an enum. The forge adapter must handle unknown noteable_types gracefully with a catch-all variant.',tags:['gitlab','bug','forge'],ttl:'48h',access:3,tide:'low tide, Rotterdam, -0.3m'},
+  ],
+  koel:[
+    {cat:'pattern',title:'Consensus-Weighted Relevance Scoring',body:'Final score = 0.4*semantic + 0.3*recency + 0.3*consensus. Entries below 0.3 excluded regardless of rank. Top 5 injected into context.',tags:['memory','scoring','retrieval'],ttl:'720h',access:52,tide:'rising tide, Rotterdam, +0.2m'},
+    {cat:'decision',title:'Git Refs over SQLite',body:'Memory stored in refs/but-ai/memory/<agent-id>/. Git refs are native to version control: diffable, branchable, mergeable. SQLite is opaque to Git. Trade-off: slower search (200ms for 1000 entries).',tags:['architecture','memory','storage'],ttl:'2160h',access:41,tide:'high tide, Felixstowe, +0.3m'},
+    {cat:'fact',title:'Memory Category TTLs',body:'pattern=720h(30d), fact=168h(7d), decision=2160h(90d), error=48h(2d), identity=never. Fleet manifests minimum 90 days, require 2-agent consensus.',tags:['memory','TTL','categories'],ttl:'168h',access:38,tide:'falling tide, Antwerp, -0.1m'},
+    {cat:'pattern',title:'CRDT Merge Strategy',body:'Last-writer-wins causes silent data loss in concurrent scenarios. CRDTs guarantee convergence without data loss. Use operation-based CRDTs for manifest entries with vector clocks for causality tracking.',tags:['CRDT','merge','concurrency'],ttl:'720h',access:27,tide:'low tide, Hamburg, -0.2m'},
+  ],
+  sable:[
+    {cat:'decision',title:'Ed25519 for Commit Signing',body:'Fastest key type for signing. OpenWallet provisions keys with branch/repo/size authorization constraints. Distinction between "retired" and "compromised" is critical for trust chain.',tags:['security','signing','OpenWallet'],ttl:'2160h',access:15,tide:'high tide, Rotterdam, +0.2m'},
+    {cat:'pattern',title:'Authorization Policy Structure',body:'Policies stored as JSON in refs/but-ai/policies/<org>. Per-agent allow/deny rules with branch patterns, repo lists, max patch lines, and time windows.',tags:['security','authorization','policy'],ttl:'720h',access:22,tide:'rising tide, Felixstowe, +0.1m'},
+    {cat:'error',title:'Key Rotation Race Condition',body:'If a new key is provisioned while the old key is signing a commit, the commit may be signed with a key that gets marked "retired" before the commit is pushed. Solution: 24h overlap window.',tags:['security','race-condition','keys'],ttl:'48h',access:5,tide:'falling tide, Rotterdam, -0.1m'},
+  ],
+  raul:[
+    {cat:'pattern',title:'Token Budget Enforcement',body:'Track at every LLM call. At 10% remaining: skip execution steps, generate partial INDEX.patch, write COMMIT.msg with PARTIAL: prefix, exit code 0.',tags:['budget','tokens','degradation'],ttl:'720h',access:31,tide:'low tide, Antwerp, -0.2m'},
+    {cat:'decision',title:'Provider Shim Protocol',body:'PATH-based discovery (but-ai-provider-*). JSON-RPC over stdio. 3 methods: capabilities, chat, stream. No dynamic linking. Universally portable, WASI-compatible.',tags:['provider','architecture','WASI'],ttl:'2160h',access:18,tide:'high tide, Hamburg, +0.3m'},
+    {cat:'fact',title:'Typical Task Token Budget',body:'System prompt 3200 + task ingestion 3000 + planning 2700 + tool calls 9600 (8x1200) + patch gen 7000 + commit msg 800 + memory 3600 + coordination 5600 + overhead 1500 = 36,400 total.',tags:['budget','tokens','estimation'],ttl:'168h',access:44,tide:'rising tide, Rotterdam, +0.1m'},
+  ]
+};
+
+const SCORING = [
+  {category:'Plugin Architecture',score:17.5,max:20,detail:'Clean Rust crate design. WASI degradation paths. PATH-based plugin discovery.'},
+  {category:'Provider-Agnostic AI',score:9.2,max:10,detail:'Leverages but-llm directly. Provider shim protocol for extensibility. No new LLM clients.'},
+  {category:'But Agent Design',score:13.0,max:15,detail:'Peer model with consensus. INDEX.patch output. Token budget enforcement. Partial completion.'},
+  {category:'PR-Based Coordination',score:14.0,max:15,detail:'Forge adapter trait (12 methods). Structured PR comment schema. Cross-repo references.'},
+  {category:'Agent Memory & Identity',score:17.2,max:20,detail:'Git refs as manifest slots. CRDT gossip. Consensus-weighted scoring. Fleet manifests. Per-agent namespaces.'},
+  {category:'Signed Commits',score:8.5,max:10,detail:'OpenWallet integration. Ed25519. Authorization policies. Key lifecycle with retired/compromised distinction.'},
+  {category:'Token Budget',score:5.0,max:5,detail:'Detailed breakdown. 36,400 tokens for typical task. Graceful degradation at 10% remaining.'},
+  {category:'Testing Strategy',score:4.5,max:5,detail:'Mock provider shim. Patch round-trip testing. Mock forge adapter. Budget enforcement tests.'},
+];
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+document.querySelectorAll('.nav button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.panel).classList.add('active');
+    if(btn.dataset.panel==='harbor-panel') resizeHarbor();
+  });
+});
+
+// ============================================================
+// HARBOR ANIMATION (Canvas)
+// ============================================================
+const canvas = document.getElementById('harborCanvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+let waveOffset = 0;
+let signalFlags = [];
+let selectedShip = null;
+
+function resizeHarbor(){
+  const rect = canvas.parentElement.getBoundingClientRect();
+  W = canvas.width = rect.width * (window.devicePixelRatio||1);
+  H = canvas.height = rect.height * (window.devicePixelRatio||1);
+  canvas.style.width = rect.width+'px';
+  canvas.style.height = rect.height+'px';
+  ctx.setTransform(window.devicePixelRatio||1,0,0,window.devicePixelRatio||1,0,0);
+  initShipPositions();
+}
+
+function initShipPositions(){
+  const cw = W/(window.devicePixelRatio||1);
+  const ch = H/(window.devicePixelRatio||1);
+  // Dock positions along the top-left (like piers)
+  const dockX = 100;
+  const dockStartY = 120;
+  let dockIdx = 0;
+  AGENTS.forEach((a,i)=>{
+    if(a.docked){
+      a.x = dockX;
+      a.y = dockStartY + dockIdx*80;
+      a.angle = 0;
+      a.vx = 0; a.vy = 0;
+      dockIdx++;
+    } else {
+      // Spread in the water area
+      const cx = cw*0.55 + Math.cos(i*1.3)*cw*0.2;
+      const cy = ch*0.5 + Math.sin(i*1.7)*ch*0.2;
+      a.x = cx; a.y = cy;
+      a.angle = Math.random()*Math.PI*2;
+      a.vx = (Math.random()-.5)*.3;
+      a.vy = (Math.random()-.5)*.3;
+    }
+  });
+}
+
+function drawWater(t){
+  const cw = W/(window.devicePixelRatio||1);
+  const ch = H/(window.devicePixelRatio||1);
+  // Background gradient
+  const grad = ctx.createLinearGradient(0,0,0,ch);
+  grad.addColorStop(0,'#081e2e');
+  grad.addColorStop(1,'#0c3040');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0,0,cw,ch);
+  // Wave lines
+  ctx.strokeStyle = 'rgba(13,79,79,0.3)';
+  ctx.lineWidth = 1;
+  for(let row=0; row<ch; row+=25){
+    ctx.beginPath();
+    for(let x=0; x<cw; x+=4){
+      const y = row + Math.sin((x+t*40)*0.02 + row*0.1)*3;
+      x===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  }
+}
+
+function drawDocks(){
+  const cw = W/(window.devicePixelRatio||1);
+  // Left shore
+  ctx.fillStyle = '#1a1a10';
+  ctx.fillRect(0,0,50,600);
+  // Piers
+  ctx.fillStyle = '#2a2a18';
+  for(let i=0;i<4;i++){
+    const py = 90 + i*80;
+    ctx.fillRect(50, py-5, 80, 10);
+    // Bollard
+    ctx.fillStyle = '#d4a017';
+    ctx.beginPath();
+    ctx.arc(50, py, 4, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#2a2a18';
+  }
+  // Pier labels
+  ctx.fillStyle = '#8b6914';
+  ctx.font = '9px Courier New';
+  ctx.textAlign = 'left';
+  for(let i=0;i<4;i++){
+    ctx.fillText('BERTH '+(i+1), 55, 82+i*80);
+  }
+  // Top shore
+  ctx.fillStyle = '#1a1a10';
+  ctx.fillRect(50,0,cw-50,30);
+  // Label
+  ctx.fillStyle = '#d4a017';
+  ctx.font = 'bold 11px Trebuchet MS';
+  ctx.textAlign = 'center';
+  ctx.fillText('TIDAL PROTOCOL HARBOR', cw/2, 18);
+}
+
+function drawShip(a, t){
+  ctx.save();
+  ctx.translate(a.x, a.y);
+  ctx.rotate(a.angle);
+  // Hull
+  ctx.fillStyle = a===selectedShip ? '#ffffff' : a.color;
+  ctx.globalAlpha = a===selectedShip ? 1 : 0.9;
+  ctx.beginPath();
+  ctx.moveTo(18,0);   // bow
+  ctx.lineTo(-12,-8);
+  ctx.lineTo(-14,-6);
+  ctx.lineTo(-14,6);
+  ctx.lineTo(-12,8);
+  ctx.closePath();
+  ctx.fill();
+  // Bridge
+  ctx.fillStyle = 'rgba(10,25,47,0.8)';
+  ctx.fillRect(-8,-4,10,8);
+  // Status light
+  const statusColor = a.state==='working'?'#00ff88':a.state==='idle'?'#d4a017':'#ff4444';
+  ctx.fillStyle = statusColor;
+  ctx.globalAlpha = 0.6 + Math.sin(t*3+AGENTS.indexOf(a))*0.4;
+  ctx.beginPath();
+  ctx.arc(-3, 0, 2, 0, Math.PI*2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.restore();
+  // Name label
+  ctx.fillStyle = '#8ab4b4';
+  ctx.font = '10px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText(a.name, a.x, a.y + 20);
+}
+
+function drawSignalFlags(t){
+  signalFlags = signalFlags.filter(f=>f.life>0);
+  signalFlags.forEach(f=>{
+    f.x += f.dx;
+    f.y += f.dy;
+    f.life -= 0.005;
+    ctx.globalAlpha = Math.min(1, f.life*2);
+    ctx.fillStyle = f.color;
+    ctx.fillRect(f.x-4, f.y-4, 8, 8);
+    // Trail
+    ctx.fillStyle = f.color;
+    ctx.globalAlpha = f.life*0.3;
+    ctx.fillRect(f.x-f.dx*3-2, f.y-f.dy*3-2, 4, 4);
+    ctx.globalAlpha = 1;
+  });
+}
+
+function spawnSignalFlag(){
+  const from = AGENTS[Math.floor(Math.random()*AGENTS.length)];
+  let to = from;
+  while(to===from) to = AGENTS[Math.floor(Math.random()*AGENTS.length)];
+  const dx = (to.x - from.x);
+  const dy = (to.y - from.y);
+  const dist = Math.sqrt(dx*dx+dy*dy);
+  if(dist < 10) return;
+  const speed = 1.5;
+  const colors = ['#ff66ff','#00ff88','#ffaa00','#4488ff','#ff4444'];
+  signalFlags.push({
+    x: from.x, y: from.y,
+    dx: dx/dist*speed, dy: dy/dist*speed,
+    life: 1,
+    color: colors[Math.floor(Math.random()*colors.length)]
+  });
+}
+
+function updateShips(){
+  const cw = W/(window.devicePixelRatio||1);
+  const ch = H/(window.devicePixelRatio||1);
+  AGENTS.forEach(a=>{
+    if(a.docked) return;
+    a.x += a.vx;
+    a.y += a.vy;
+    // Gentle wandering
+    a.vx += (Math.random()-.5)*0.04;
+    a.vy += (Math.random()-.5)*0.04;
+    // Damping
+    a.vx *= 0.99;
+    a.vy *= 0.99;
+    // Speed limit
+    const spd = Math.sqrt(a.vx*a.vx+a.vy*a.vy);
+    if(spd > 0.8){ a.vx *= 0.8/spd; a.vy *= 0.8/spd; }
+    // Bounds (keep in water area)
+    if(a.x < 160) a.vx += 0.05;
+    if(a.x > cw-30) a.vx -= 0.05;
+    if(a.y < 50) a.vy += 0.05;
+    if(a.y > ch-30) a.vy -= 0.05;
+    // Face direction of travel
+    if(spd > 0.1) a.angle = Math.atan2(a.vy, a.vx);
+  });
+}
+
+function drawRadarSweep(t){
+  const cw = W/(window.devicePixelRatio||1);
+  const ch = H/(window.devicePixelRatio||1);
+  const cx = cw - 60;
+  const cy = ch - 60;
+  const r = 45;
+  // Radar circle
+  ctx.strokeStyle = 'rgba(0,255,136,0.2)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx,cy,r/2,0,Math.PI*2); ctx.stroke();
+  // Sweep line
+  const angle = t*0.8;
+  ctx.strokeStyle = 'rgba(0,255,136,0.5)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.cos(angle)*r, cy + Math.sin(angle)*r);
+  ctx.stroke();
+  // Fade trail
+  ctx.fillStyle = 'rgba(0,255,136,0.05)';
+  ctx.beginPath();
+  ctx.moveTo(cx,cy);
+  ctx.arc(cx, cy, r, angle-0.6, angle);
+  ctx.closePath();
+  ctx.fill();
+  // Blips for agents
+  AGENTS.forEach(a=>{
+    const bx = cx + ((a.x/cw)-0.5)*r*1.6;
+    const by = cy + ((a.y/ch)-0.5)*r*1.6;
+    const dist = Math.sqrt((bx-cx)**2+(by-cy)**2);
+    if(dist < r){
+      ctx.fillStyle = a.color;
+      ctx.globalAlpha = 0.8;
+      ctx.beginPath(); ctx.arc(bx,by,2.5,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  });
+  // Label
+  ctx.fillStyle = 'rgba(0,255,136,0.4)';
+  ctx.font = '8px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText('RADAR', cx, cy-r-6);
+}
+
+let harborTime = 0;
+let flagTimer = 0;
+function animateHarbor(){
+  harborTime += 0.016;
+  flagTimer += 0.016;
+  if(flagTimer > 1.2){ spawnSignalFlag(); flagTimer = 0; }
+
+  const cw = W/(window.devicePixelRatio||1);
+  const ch = H/(window.devicePixelRatio||1);
+  ctx.clearRect(0,0,cw,ch);
+
+  drawWater(harborTime);
+  drawDocks();
+  updateShips();
+  AGENTS.forEach(a=>drawShip(a, harborTime));
+  drawSignalFlags(harborTime);
+  drawRadarSweep(harborTime);
+
+  requestAnimationFrame(animateHarbor);
+}
+
+canvas.addEventListener('click', (e)=>{
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  selectedShip = null;
+  AGENTS.forEach(a=>{
+    const dx = a.x - mx, dy = a.y - my;
+    if(Math.sqrt(dx*dx+dy*dy) < 25) selectedShip = a;
+  });
+  const info = document.getElementById('harborInfo');
+  if(selectedShip){
+    info.textContent = selectedShip.name + ' [' + selectedShip.role + '] — ' + selectedShip.state.toUpperCase() + ' — ' + selectedShip.focus;
+  } else {
+    info.textContent = '5 agents active \u2022 Click a ship for details';
+  }
+});
+
+window.addEventListener('resize', resizeHarbor);
+resizeHarbor();
+animateHarbor();
+
+// ============================================================
+// TIDAL CLOCK
+// ============================================================
+function renderTidalClock(){
+  const svg = document.getElementById('tidalClockSvg');
+  const now = Date.now();
+  const cycleMs = 6*60*60*1000;
+  const pos = (now % cycleMs) / cycleMs;
+  const angle = pos * Math.PI * 2 - Math.PI/2;
+
+  // Determine phase
+  let phase, phaseColor;
+  if(pos < 0.25){ phase='Rising Tide'; phaseColor='#00ff88'; }
+  else if(pos < 0.5){ phase='High Tide'; phaseColor='#d4a017'; }
+  else if(pos < 0.75){ phase='Falling Tide'; phaseColor='#4488ff'; }
+  else { phase='Low Tide'; phaseColor='#0d4f4f'; }
+
+  const hrs = Math.floor(pos*6);
+  const mins = Math.floor((pos*6 - hrs)*60);
+
+  document.getElementById('tidePhase').textContent = phase;
+  document.getElementById('tidePhase').style.color = phaseColor;
+  document.getElementById('tideTime').textContent = String(hrs).padStart(2,'0') + ':' + String(mins).padStart(2,'0') + ' into cycle (' + Math.round(pos*100) + '%)';
+  document.getElementById('tideFill').style.width = Math.round(pos*100) + '%';
+
+  // Build SVG
+  const cx=150,cy=150,r=120;
+  let svgContent = '';
+  // Outer ring
+  svgContent += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#1a7a7a" stroke-width="2"/>`;
+  svgContent += `<circle cx="${cx}" cy="${cy}" r="${r-15}" fill="none" stroke="rgba(13,79,79,0.3)" stroke-width="1"/>`;
+  // Center
+  svgContent += `<circle cx="${cx}" cy="${cy}" r="4" fill="#d4a017"/>`;
+  // Phase arcs
+  const phases = [
+    {start:-Math.PI/2, end:0, color:'rgba(0,255,136,0.1)', label:'RISING'},
+    {start:0, end:Math.PI/2, color:'rgba(212,160,23,0.1)', label:'HIGH'},
+    {start:Math.PI/2, end:Math.PI, color:'rgba(68,136,255,0.1)', label:'FALLING'},
+    {start:Math.PI, end:Math.PI*1.5, color:'rgba(13,79,79,0.15)', label:'LOW'},
+  ];
+  phases.forEach(p=>{
+    const x1 = cx + Math.cos(p.start)*r;
+    const y1 = cy + Math.sin(p.start)*r;
+    const x2 = cx + Math.cos(p.end)*r;
+    const y2 = cy + Math.sin(p.end)*r;
+    svgContent += `<path d="M${cx},${cy} L${x1},${y1} A${r},${r} 0 0,1 ${x2},${y2} Z" fill="${p.color}"/>`;
+    const mid = (p.start+p.end)/2;
+    const lx = cx + Math.cos(mid)*(r-35);
+    const ly = cy + Math.sin(mid)*(r-35);
+    svgContent += `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" fill="#607080" font-size="9" font-family="Courier New">${p.label}</text>`;
+  });
+  // Hour marks
+  for(let i=0;i<6;i++){
+    const a = (i/6)*Math.PI*2 - Math.PI/2;
+    const x1 = cx+Math.cos(a)*(r-8);
+    const y1 = cy+Math.sin(a)*(r-8);
+    const x2 = cx+Math.cos(a)*r;
+    const y2 = cy+Math.sin(a)*r;
+    svgContent += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#d4a017" stroke-width="2"/>`;
+    const lx = cx+Math.cos(a)*(r+14);
+    const ly = cy+Math.sin(a)*(r+14);
+    svgContent += `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" fill="#d4a017" font-size="11" font-family="Courier New" font-weight="bold">${i}h</text>`;
+  }
+  // Minute marks
+  for(let i=0;i<36;i++){
+    if(i%6===0) continue;
+    const a = (i/36)*Math.PI*2 - Math.PI/2;
+    const x1 = cx+Math.cos(a)*(r-4);
+    const y1 = cy+Math.sin(a)*(r-4);
+    const x2 = cx+Math.cos(a)*r;
+    const y2 = cy+Math.sin(a)*r;
+    svgContent += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#1a7a7a" stroke-width="0.5"/>`;
+  }
+  // Hand
+  const hx = cx + Math.cos(angle)*(r-25);
+  const hy = cy + Math.sin(angle)*(r-25);
+  svgContent += `<line x1="${cx}" y1="${cy}" x2="${hx}" y2="${hy}" stroke="${phaseColor}" stroke-width="3" stroke-linecap="round"/>`;
+  // Glow at tip
+  svgContent += `<circle cx="${hx}" cy="${hy}" r="5" fill="${phaseColor}" opacity="0.4"/>`;
+  svgContent += `<circle cx="${hx}" cy="${hy}" r="3" fill="${phaseColor}" opacity="0.7"/>`;
+
+  svg.innerHTML = svgContent;
+
+  // Consensus windows
+  const windowsEl = document.getElementById('consensusWindows');
+  const windows = [
+    {name:'Proposal Submission', start:0, end:0.17, desc:'Agents submit proposals (0:00 - 1:00)'},
+    {name:'Review & Discussion', start:0.17, end:0.5, desc:'Signal flags exchanged (1:00 - 3:00)'},
+    {name:'Voting Window', start:0.5, end:0.75, desc:'3/5 quorum required (3:00 - 4:30)'},
+    {name:'Commit Window', start:0.75, end:0.92, desc:'Approved patches merged (4:30 - 5:30)'},
+    {name:'Cooldown', start:0.92, end:1, desc:'State sync & memory update (5:30 - 6:00)'},
+  ];
+  windowsEl.innerHTML = windows.map(w=>{
+    const isOpen = pos >= w.start && pos < w.end;
+    return `<div class="window-item ${isOpen?'open':'closed'}">
+      <div class="status ${isOpen?'open':'closed'}"></div>
+      <div style="flex:1">
+        <div style="color:${isOpen?'var(--radar)':'var(--foam-dim)'};font-weight:700;font-size:.8rem">${w.name}</div>
+        <div style="font-size:.7rem;color:var(--gray)">${w.desc}</div>
+      </div>
+      <div style="font-size:.7rem;color:${isOpen?'var(--radar)':'var(--gray)'}">[ ${isOpen?'OPEN':'CLOSED'} ]</div>
+    </div>`;
+  }).join('');
+}
+
+renderTidalClock();
+setInterval(renderTidalClock, 1000);
+
+// ============================================================
+// MANIFEST VIEWER
+// ============================================================
+function renderManifestShips(){
+  const el = document.getElementById('manifestShips');
+  el.innerHTML = AGENTS.map(a=>`
+    <button class="ship-btn" data-agent="${a.id}" onclick="selectManifestAgent('${a.id}')">
+      <span style="color:${a.color}">\u25CF</span> ${a.name}
+      <span class="role">${a.role}</span>
+    </button>
+  `).join('');
+}
+
+function selectManifestAgent(id){
+  document.querySelectorAll('.manifest-ships .ship-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.agent===id);
+  });
+  const entries = MANIFESTS[id] || [];
+  const agent = AGENTS.find(a=>a.id===id);
+  const el = document.getElementById('manifestContent');
+  if(!entries.length){
+    el.innerHTML = '<p style="color:var(--gray);padding:2rem;text-align:center">No manifest entries.</p>';
+    return;
+  }
+  el.innerHTML = `
+    <h3 style="margin-bottom:.5rem">${agent.name}'s Manifest</h3>
+    <p style="font-size:.75rem;color:var(--gray);margin-bottom:1.5rem">${entries.length} entries &bull; CRDT-synced &bull; Git refs: refs/but-ai/memory/${id}/</p>
+    ${entries.map((e,i)=>`
+      <div class="manifest-entry" style="animation:fadeIn ${0.2+i*0.1}s ease">
+        <span class="cat ${e.cat}">${e.cat}</span>
+        <h4>${e.title}</h4>
+        <div class="body">${e.body}</div>
+        <div class="tags">${e.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+        <div class="meta">
+          <span>TTL: ${e.ttl}</span>
+          <span>Accessed: ${e.access}x</span>
+          <span>Tide: ${e.tide}</span>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+renderManifestShips();
+
+// ============================================================
+// CONSENSUS DEMO
+// ============================================================
+const proposals = [
+  {title:'Refactor auth module to use provider trait pattern',agent:'dara',files:3,lines:142,branch:'dara/t001'},
+  {title:'Add GitLab forge adapter implementation',agent:'ines',files:2,lines:89,branch:'ines/t002.dara-t001'},
+  {title:'Implement memory TTL expiration sweep',agent:'koel',files:1,lines:67,branch:'koel/t003'},
+  {title:'Add Ed25519 key rotation overlap window',agent:'sable',files:2,lines:54,branch:'sable/t004.koel-t003'},
+  {title:'Provider shim JSON-RPC stream method',agent:'raul',files:1,lines:103,branch:'raul/t005'},
+];
+
+let currentProposal = 0;
+let votes = {};
+let signalLogEntries = [];
+let consensusTimer = null;
+
+function resetConsensus(){
+  currentProposal = (currentProposal + 1) % proposals.length;
+  votes = {};
+  signalLogEntries = [];
+  document.getElementById('voteResult').textContent = '';
+  renderConsensus();
+  runConsensusSimulation();
+}
+
+function renderConsensus(){
+  const p = proposals[currentProposal];
+  document.getElementById('proposalInfo').innerHTML = `
+    <div style="margin-bottom:.6rem"><strong style="color:var(--brass)">PROPOSAL:</strong> ${p.title}</div>
+    <div>Proposed by: <strong style="color:${AGENTS.find(a=>a.id===p.agent).color}">${p.agent}</strong></div>
+    <div>Branch: <code style="color:var(--radar)">${p.branch}</code></div>
+    <div>Scope: ${p.files} files, ${p.lines} lines changed</div>
+    <div style="margin-top:.5rem;color:var(--brass);font-size:.7rem">Quorum required: 3 of 5 agents</div>
+  `;
+
+  const voteGrid = document.getElementById('voteGrid');
+  voteGrid.innerHTML = AGENTS.map(a=>{
+    const v = votes[a.id];
+    const statusClass = v==='approve'?'approve':v==='reject'?'reject':'pending';
+    const statusText = v==='approve'?'APPROVED':v==='reject'?'REJECTED':'PENDING...';
+    return `<div class="vote-row">
+      <span class="agent-name" style="color:${a.color}">${a.name}</span>
+      <span class="vote-status ${statusClass}">${statusText}</span>
+    </div>`;
+  }).join('');
+
+  const logEl = document.getElementById('signalLog');
+  logEl.innerHTML = signalLogEntries.map(e=>`
+    <div class="signal-entry">
+      <span class="ts">${e.ts}</span>
+      <div class="flag" style="background:${e.color}"></div>
+      <span class="msg"><span class="from">${e.from}:</span> ${e.msg}</span>
+    </div>
+  `).join('');
+  logEl.scrollTop = logEl.scrollHeight;
+
+  // Check consensus
+  const approvals = Object.values(votes).filter(v=>v==='approve').length;
+  const rejections = Object.values(votes).filter(v=>v==='reject').length;
+  const result = document.getElementById('voteResult');
+  if(approvals >= 3){
+    result.textContent = 'CONSENSUS REACHED: Patch approved by quorum (' + approvals + '/5)';
+    result.style.color = 'var(--radar)';
+  } else if(rejections >= 3){
+    result.textContent = 'CONSENSUS BLOCKED: Patch rejected by quorum (' + rejections + '/5)';
+    result.style.color = 'var(--red)';
+  }
+}
+
+function addSignalLog(from, msg, color){
+  const now = new Date();
+  const ts = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+  signalLogEntries.push({ts, from, msg, color});
+}
+
+function runConsensusSimulation(){
+  if(consensusTimer) clearTimeout(consensusTimer);
+  const p = proposals[currentProposal];
+  const proposer = AGENTS.find(a=>a.id===p.agent);
+  const others = AGENTS.filter(a=>a.id!==p.agent);
+
+  // Proposer submits
+  setTimeout(()=>{
+    addSignalLog(proposer.name, `Submitting proposal: "${p.title}" (${p.lines} lines across ${p.files} files)`, proposer.color);
+    renderConsensus();
+  }, 500);
+
+  // Others review and vote
+  others.forEach((a, i)=>{
+    const delay = 1500 + i*1200 + Math.random()*800;
+    setTimeout(()=>{
+      addSignalLog(a.name, `Reviewing patch on branch ${p.branch}...`, a.color);
+      renderConsensus();
+    }, delay);
+
+    setTimeout(()=>{
+      // Weighted random vote (80% approve)
+      const vote = Math.random() < 0.8 ? 'approve' : 'reject';
+      votes[a.id] = vote;
+      const emoji = vote==='approve' ? 'LGTM' : 'REQUEST CHANGES';
+      addSignalLog(a.name, `<!-- but-ai:message type:consensus-vote --> ${emoji} - ${vote==='approve'?'Patch looks correct, no conflicts with my workstream':'Concerns about integration with my current task'}`, a.color);
+      renderConsensus();
+    }, delay + 800);
+  });
+
+  // Proposer self-votes last
+  setTimeout(()=>{
+    votes[p.agent] = 'approve';
+    addSignalLog(proposer.name, '<!-- but-ai:message type:consensus-vote --> Self-vote: APPROVE (proposer acknowledges quorum result)', proposer.color);
+    renderConsensus();
+  }, 1500 + others.length*1200 + 1200);
+}
+
+function userVote(type){
+  addSignalLog('Observer', `External ${type==='approve'?'APPROVAL':'REJECTION'} signal received (human-in-the-loop)`, type==='approve'?'#00ff88':'#ff4444');
+  renderConsensus();
+}
+
+renderConsensus();
+runConsensusSimulation();
+
+// ============================================================
+// FLEET DASHBOARD
+// ============================================================
+function renderFleetDashboard(){
+  const el = document.getElementById('fleetGrid');
+  const memCounts = {};
+  Object.entries(MANIFESTS).forEach(([k,v])=>memCounts[k]=v.length);
+
+  const tideChecks = {
+    dara:  {state:'working', current:'Generating INDEX.patch for auth refactor (step 4/5)', needs:'Ines\'s forge adapter PR merged', offers:'Patch review for any pending PRs'},
+    ines:  {state:'working', current:'Implementing GitLab forge adapter trait methods', needs:'None', offers:'Cross-repo reference resolution'},
+    koel:  {state:'idle',    current:'Memory compaction sweep completed. Awaiting new task.', needs:'Decision on fleet manifest TTL policy', offers:'Memory retrieval optimization for any agent'},
+    sable: {state:'working', current:'Testing Ed25519 key rotation with 24h overlap window', needs:'Koel\'s memory refs for authorization policy storage', offers:'Signing service for any agent\'s commits'},
+    raul:  {state:'blocked', current:'Blocked on provider shim protocol finalization', needs:'Consensus on JSON-RPC stream method signature', offers:'Token budget estimates for any task'},
+  };
+
+  const now = new Date();
+  const tideRef = ['rising','high','falling','low'][Math.floor(((now.getHours()%6)/6)*4)];
+
+  el.innerHTML = AGENTS.map(a=>{
+    const tc = tideChecks[a.id];
+    const mc = memCounts[a.id]||0;
+    const syncAge = Math.floor(Math.random()*20);
+    return `<div class="agent-card ${tc.state}">
+      <div class="name"><span style="color:${a.color}">\u25CF</span> ${a.name}</div>
+      <div class="role">${a.role} &mdash; ${a.focus}</div>
+      <div class="stat"><span class="k">State</span><span class="v" style="color:${tc.state==='working'?'var(--radar)':tc.state==='idle'?'var(--brass)':'var(--red)'}">${tc.state.toUpperCase()}</span></div>
+      <div class="stat"><span class="k">Memory Entries</span><span class="v">${mc}</span></div>
+      <div class="stat"><span class="k">Last Sync</span><span class="v ${syncAge<5?'synced':'stale'}">${syncAge}m ago</span></div>
+      <div class="stat"><span class="k">Tide Position</span><span class="v">${tideRef} tide</span></div>
+      <div class="tide-check">
+        <div>TIDE CHECK &mdash; ${a.name} &mdash; ${now.toISOString().slice(0,19)}Z (${tideRef} tide, Rotterdam)</div>
+        <div>STATE: <span class="state ${tc.state}">${tc.state}</span></div>
+        <div>CURRENT: ${tc.current}</div>
+        <div>NEEDS: ${tc.needs}</div>
+        <div>OFFERS: ${tc.offers}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+renderFleetDashboard();
+
+// ============================================================
+// SCORING / SHIP'S LOG
+// ============================================================
+function renderScoring(){
+  const el = document.getElementById('scoringEntries');
+  el.innerHTML = SCORING.map(s=>`
+    <div class="log-entry">
+      <span class="category">${s.category}</span>
+      <span style="float:right"><span class="score-val">${s.score}</span> / ${s.max}</span>
+      <div class="detail">${s.detail}</div>
+    </div>
+  `).join('');
+}
+
+renderScoring();
+
+// ============================================================
+// CSS ANIMATION
+// ============================================================
+const style = document.createElement('style');
+style.textContent = `@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`;
+document.head.appendChild(style);
+</script>
+</body>
+</html>
