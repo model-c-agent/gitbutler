@@ -1,0 +1,2161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>but-ai: The Unified Memory Architecture</title>
+<style>
+/* ============================================================
+   RESET & VARIABLES
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg-dark:#0d1117;
+  --bg-alt:#161b22;
+  --bg-card:#1c2129;
+  --bg-hover:#21262d;
+  --bg-deep:#090c10;
+  --gold:#e6c200;
+  --gold-dim:#a08800;
+  --gold-glow:rgba(230,194,0,.15);
+  --gold-bright:#ffd700;
+  --teal:#00ff88;
+  --teal-dim:#00aa5c;
+  --teal-glow:rgba(0,255,136,.1);
+  --teal-dark:#004d2a;
+  --burgundy:#722f37;
+  --burgundy-light:#a34450;
+  --burgundy-glow:rgba(114,47,55,.2);
+  --blue:#58a6ff;
+  --blue-dim:#388bfd;
+  --blue-glow:rgba(88,166,255,.1);
+  --white:#e6edf3;
+  --gray:#8b949e;
+  --gray-dim:#484f58;
+  --border:#30363d;
+  --serif:Georgia,'Times New Roman',serif;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --mono:'SF Mono','Fira Code','Fira Mono','Roboto Mono',Consolas,'Courier New',monospace;
+}
+html{scroll-behavior:smooth;font-size:16px}
+body{
+  background:var(--bg-dark);
+  color:var(--white);
+  font-family:var(--sans);
+  overflow-x:hidden;
+  line-height:1.6;
+}
+h1,h2,h3,h4{font-family:var(--serif);font-weight:700;color:var(--white)}
+h2{font-size:clamp(1.6rem,4vw,2.4rem)}
+a{color:var(--blue);text-decoration:none}
+a:hover{text-decoration:underline}
+::selection{background:var(--gold);color:var(--bg-dark)}
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+.nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  background:rgba(13,17,23,.88);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;
+  padding:0 2rem;height:52px;
+}
+.nav-brand{
+  font-family:var(--mono);color:var(--gold);
+  font-size:.9rem;font-weight:700;letter-spacing:1px;
+  white-space:nowrap;
+}
+.nav-brand span{color:var(--gray)}
+.nav-links{
+  display:flex;gap:.25rem;margin-left:auto;
+  overflow-x:auto;-webkit-overflow-scrolling:touch;
+}
+.nav-links a{
+  color:var(--gray);font-size:.78rem;
+  padding:.45rem .7rem;border-radius:6px;
+  transition:all .2s;white-space:nowrap;
+}
+.nav-links a:hover,.nav-links a.active{
+  color:var(--white);background:var(--bg-hover);text-decoration:none;
+}
+.nav-links a.active{color:var(--gold)}
+
+/* ============================================================
+   SECTIONS BASE
+   ============================================================ */
+section{
+  min-height:100vh;
+  padding:7rem 2rem 5rem;
+  position:relative;
+}
+section:nth-child(odd){background:var(--bg-dark)}
+section:nth-child(even){background:var(--bg-alt)}
+.section-inner{max-width:1100px;margin:0 auto}
+.section-label{
+  font-family:var(--mono);font-size:.7rem;
+  color:var(--gold-dim);letter-spacing:3px;
+  text-transform:uppercase;text-align:center;
+  margin-bottom:.75rem;
+}
+.section-desc{
+  text-align:center;color:var(--gray);
+  max-width:650px;margin:0 auto 2.5rem;
+  font-size:.95rem;line-height:1.6;
+}
+
+/* ============================================================
+   SCROLL REVEAL
+   ============================================================ */
+.reveal{
+  opacity:0;transform:translateY(30px);
+  transition:opacity .8s cubic-bezier(.25,.46,.45,.94),transform .8s cubic-bezier(.25,.46,.45,.94);
+}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.reveal-delay-1{transition-delay:.1s}
+.reveal-delay-2{transition-delay:.2s}
+.reveal-delay-3{transition-delay:.3s}
+.reveal-delay-4{transition-delay:.4s}
+
+/* ============================================================
+   SECTION 1: HERO
+   ============================================================ */
+.hero{
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  text-align:center;min-height:100vh;
+  padding-top:52px;position:relative;
+  overflow:hidden;
+}
+#heroCanvas{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  pointer-events:none;z-index:0;
+}
+.hero .section-inner{position:relative;z-index:1}
+.hero h1{
+  font-size:clamp(2.2rem,6vw,4.2rem);
+  line-height:1.08;margin-bottom:1.2rem;
+  background:linear-gradient(135deg,var(--gold) 0%,var(--white) 40%,var(--gold-bright) 100%);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  background-clip:text;
+  letter-spacing:-.02em;
+}
+.hero .subtitle{
+  font-size:clamp(.95rem,2.2vw,1.3rem);
+  color:var(--gray);max-width:680px;
+  margin:0 auto 3rem;line-height:1.55;
+}
+.hero-counter{
+  display:flex;align-items:center;gap:1.5rem;
+  margin-bottom:3.5rem;flex-wrap:wrap;justify-content:center;
+}
+.hero-counter .num-group{text-align:center}
+.hero-counter .num{
+  font-family:var(--mono);
+  font-size:clamp(2rem,5vw,3.5rem);
+  font-weight:700;color:var(--teal);
+  display:block;
+}
+.hero-counter .label{
+  font-size:.8rem;color:var(--gray-dim);
+  display:block;margin-top:.1rem;
+  letter-spacing:.5px;
+}
+.hero-counter .arrow{
+  color:var(--gold-dim);font-size:1.6rem;
+  animation:arrowPulse 2s ease-in-out infinite;
+}
+@keyframes arrowPulse{
+  0%,100%{opacity:.4;transform:translateX(0)}
+  50%{opacity:1;transform:translateX(4px)}
+}
+.hero-quote{
+  max-width:620px;margin:0 auto;
+  padding:1.5rem 2rem;
+  border-left:3px solid var(--gold-dim);
+  background:var(--gold-glow);
+  border-radius:0 10px 10px 0;
+}
+.hero-quote p{
+  font-family:var(--serif);font-style:italic;
+  color:var(--gray);font-size:1.05rem;line-height:1.65;
+}
+.hero-quote .attr{
+  color:var(--gold-dim);font-size:.8rem;
+  margin-top:.5rem;font-style:normal;
+  font-family:var(--mono);
+}
+.scroll-hint{
+  position:absolute;bottom:2rem;left:50%;
+  transform:translateX(-50%);
+  color:var(--gray-dim);font-size:.7rem;
+  animation:scrollBounce 2s ease-in-out infinite;
+  font-family:var(--mono);letter-spacing:1px;
+}
+@keyframes scrollBounce{
+  0%,100%{transform:translateX(-50%) translateY(0);opacity:.3}
+  50%{transform:translateX(-50%) translateY(8px);opacity:.7}
+}
+
+/* ============================================================
+   SECTION 2: THE FIELD
+   ============================================================ */
+.dot-grid{
+  display:flex;flex-wrap:wrap;gap:4px;
+  justify-content:center;max-width:720px;
+  margin:0 auto 2rem;padding:1.5rem;
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:12px;
+}
+.dot{
+  width:12px;height:12px;border-radius:50%;
+  opacity:.35;transition:all .4s ease;cursor:default;
+}
+.dot:hover{opacity:.7;transform:scale(1.3)}
+.dot.top5{
+  opacity:1;
+  box-shadow:0 0 10px currentColor;
+  transform:scale(1.5);z-index:2;
+  border:1px solid rgba(255,255,255,.4);
+  animation:dotGlow 2.5s ease-in-out infinite;
+}
+@keyframes dotGlow{
+  0%,100%{box-shadow:0 0 6px currentColor}
+  50%{box-shadow:0 0 14px currentColor}
+}
+.domain-legend{
+  display:flex;flex-wrap:wrap;gap:.65rem;
+  justify-content:center;max-width:720px;
+  margin:0 auto 2.5rem;font-size:.7rem;
+  color:var(--gray);
+}
+.domain-legend .item{display:flex;align-items:center;gap:4px}
+.domain-legend .swatch{width:8px;height:8px;border-radius:50%}
+.top5-cards{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+  gap:1rem;max-width:1100px;margin:0 auto;
+}
+.top5-card{
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:10px;padding:1.25rem 1.25rem 1rem;
+  position:relative;overflow:hidden;
+  transition:transform .3s ease,box-shadow .3s ease;
+}
+.top5-card:hover{
+  transform:translateY(-4px);
+  box-shadow:0 12px 32px rgba(0,0,0,.5);
+}
+.top5-card .accent-bar{
+  position:absolute;top:0;left:0;right:0;height:3px;
+}
+.top5-card .rank-badge{
+  position:absolute;top:8px;right:8px;
+  background:var(--gold);color:var(--bg-dark);
+  font-family:var(--mono);font-weight:700;
+  font-size:.7rem;padding:.2rem .5rem;
+  border-radius:4px;
+}
+.top5-card .org-name{
+  font-family:var(--serif);font-size:.95rem;
+  font-weight:700;margin-bottom:.25rem;margin-top:.2rem;
+}
+.top5-card .org-domain{
+  font-size:.72rem;color:var(--gray);margin-bottom:.4rem;
+}
+.top5-card .org-philosophy{
+  font-size:.65rem;color:var(--gold-dim);
+  text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem;
+}
+.top5-card .org-memory{
+  font-size:.75rem;color:var(--teal-dim);
+  font-family:var(--mono);line-height:1.4;
+}
+.top5-card .org-score{
+  font-family:var(--mono);font-size:.75rem;
+  color:var(--teal);margin-top:.5rem;
+}
+
+/* ============================================================
+   SECTION 3: FIVE VISIONS
+   ============================================================ */
+.visions-tabs{
+  display:flex;gap:0;margin-bottom:2rem;
+  border-bottom:1px solid var(--border);overflow-x:auto;
+}
+.vtab{
+  background:none;border:none;color:var(--gray);
+  padding:.8rem 1.2rem;font-family:var(--mono);
+  font-size:.78rem;cursor:pointer;
+  border-bottom:2px solid transparent;
+  transition:all .2s;white-space:nowrap;
+}
+.vtab:hover{color:var(--white);background:var(--bg-hover)}
+.vtab.active{color:var(--gold);border-bottom-color:var(--gold)}
+.vision-panel{display:none;animation:visionFade .5s ease}
+.vision-panel.active{display:block}
+@keyframes visionFade{
+  from{opacity:0;transform:translateY(12px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.vision-header{
+  display:flex;align-items:center;gap:1.5rem;
+  margin-bottom:1.5rem;flex-wrap:wrap;
+}
+.vision-icon{
+  width:68px;height:68px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:2rem;flex-shrink:0;
+}
+.vision-meta h3{font-size:1.3rem;margin-bottom:.15rem}
+.vision-meta .metaphor{
+  color:var(--gold);font-size:.85rem;
+  font-family:var(--serif);font-style:italic;
+}
+.vision-stats{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+  gap:.75rem;margin-bottom:1.5rem;
+}
+.vstat{
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:8px;padding:.85rem;text-align:center;
+}
+.vstat .val{
+  font-family:var(--mono);font-size:1.4rem;
+  font-weight:700;color:var(--teal);
+}
+.vstat .lbl{
+  font-size:.65rem;color:var(--gray);margin-top:.15rem;
+  text-transform:uppercase;letter-spacing:.5px;
+}
+.vision-innovation{
+  background:var(--bg-card);
+  border-left:3px solid var(--gold-dim);
+  padding:1rem 1.25rem;border-radius:0 8px 8px 0;
+  margin-bottom:1rem;
+}
+.vision-innovation h4{
+  font-size:.82rem;color:var(--gold);
+  margin-bottom:.35rem;font-family:var(--sans);
+}
+.vision-innovation p{
+  font-size:.88rem;color:var(--gray);line-height:1.55;
+}
+.vision-agents{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem}
+.vision-agents .agent{
+  background:var(--bg-hover);border:1px solid var(--border);
+  border-radius:20px;padding:.25rem .7rem;
+  font-size:.72rem;color:var(--gray);
+  transition:all .2s;
+}
+.vision-agents .agent:hover{
+  border-color:var(--gold-dim);color:var(--white);
+}
+.totals-bar{
+  display:flex;gap:2rem;justify-content:center;flex-wrap:wrap;
+  margin-top:2.5rem;padding:1.25rem 1rem;
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:10px;
+}
+.totals-bar .ti{text-align:center;min-width:80px}
+.totals-bar .ti .v{
+  font-family:var(--mono);font-size:1.2rem;
+  font-weight:700;color:var(--gold);
+}
+.totals-bar .ti .l{
+  font-size:.65rem;color:var(--gray);display:block;
+  margin-top:.1rem;
+}
+
+/* ============================================================
+   SECTION 4: CONVERSATION
+   ============================================================ */
+.network-canvas{
+  width:100%;height:340px;display:block;
+  margin:0 auto 2rem;border-radius:12px;
+  background:var(--bg-card);border:1px solid var(--border);
+}
+.debates{display:grid;gap:1rem}
+.debate{
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:10px;overflow:hidden;
+  transition:all .3s ease;
+}
+.debate:hover{border-color:var(--gold-dim)}
+.debate-header{
+  display:flex;align-items:center;gap:.75rem;
+  padding:1rem 1.25rem;cursor:pointer;user-select:none;
+}
+.debate-arrow{
+  color:var(--gold);font-size:.75rem;
+  transition:transform .3s ease;flex-shrink:0;
+  width:14px;
+}
+.debate.open .debate-arrow{transform:rotate(90deg)}
+.debate-participants{
+  display:flex;align-items:center;gap:.5rem;
+  flex-shrink:0;
+}
+.debate-from{
+  font-family:var(--mono);font-size:.72rem;
+  color:var(--burgundy-light);
+  background:var(--burgundy-glow);
+  padding:.15rem .5rem;border-radius:4px;
+}
+.debate-dir{color:var(--gray-dim);font-size:.75rem}
+.debate-to{
+  font-family:var(--mono);font-size:.72rem;
+  color:var(--blue);
+  background:var(--blue-glow);
+  padding:.15rem .5rem;border-radius:4px;
+}
+.debate-q{
+  font-family:var(--serif);font-size:.88rem;
+  color:var(--white);font-style:italic;flex:1;
+  min-width:0;
+}
+.debate-body{
+  max-height:0;overflow:hidden;
+  transition:max-height .4s ease,padding .3s ease;
+  padding:0 1.25rem;
+}
+.debate.open .debate-body{
+  max-height:800px;
+  padding:.75rem 1.25rem 1.25rem;
+  border-top:1px solid var(--border);
+}
+.debate-full-q{
+  font-size:.82rem;color:var(--gray);
+  line-height:1.6;margin-bottom:.75rem;
+}
+.debate-full-q strong{color:var(--burgundy-light)}
+.debate-answer{
+  padding:.75rem 1rem;background:var(--bg-alt);
+  border-radius:6px;font-size:.82rem;
+  color:var(--gray);line-height:1.6;
+  margin-bottom:.75rem;
+}
+.debate-answer strong{color:var(--teal)}
+.debate-resolution{
+  padding:.6rem 1rem;background:var(--teal-glow);
+  border-left:2px solid var(--teal-dim);
+  border-radius:0 6px 6px 0;font-size:.78rem;
+  color:var(--teal);line-height:1.5;
+}
+.conv-stats{
+  display:flex;gap:2.5rem;justify-content:center;
+  flex-wrap:wrap;margin-top:2rem;
+}
+.conv-stats .cs{text-align:center}
+.conv-stats .cs .v{
+  font-family:var(--mono);font-size:2rem;
+  font-weight:700;color:var(--teal);display:block;
+}
+.conv-stats .cs .l{
+  font-size:.72rem;color:var(--gray);display:block;
+  letter-spacing:.5px;
+}
+
+/* ============================================================
+   SECTION 5: CONSENSUS
+   ============================================================ */
+.consensus-list{max-width:620px;margin:0 auto;display:grid;gap:.7rem}
+.consensus-item{
+  display:flex;align-items:flex-start;gap:1rem;
+  padding:1rem 1.25rem;background:var(--bg-card);
+  border:1px solid var(--border);border-radius:8px;
+  opacity:0;transform:translateX(-30px);
+  transition:all .5s cubic-bezier(.25,.46,.45,.94);
+}
+.consensus-item.checked{opacity:1;transform:translateX(0)}
+.consensus-check{
+  width:22px;height:22px;border-radius:50%;
+  border:2px solid var(--gray-dim);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;transition:all .4s ease;
+  font-size:.75rem;color:transparent;
+  margin-top:2px;
+}
+.consensus-item.checked .consensus-check{
+  background:var(--teal-dim);color:var(--bg-dark);
+  border-color:var(--teal);
+  box-shadow:0 0 8px rgba(0,255,136,.3);
+}
+.consensus-text{font-size:.92rem;line-height:1.5}
+.consensus-text strong{color:var(--gold)}
+
+/* ============================================================
+   SECTION 6: SCORING
+   ============================================================ */
+.scoring-formula{
+  font-family:var(--mono);font-size:.82rem;
+  color:var(--gray);text-align:center;
+  margin-bottom:2rem;padding:1.25rem;
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:8px;line-height:2.2;
+  word-spacing:2px;
+}
+.scoring-formula .w{color:var(--teal);font-weight:700}
+.scoring-formula .op{color:var(--gold-dim)}
+.sliders{
+  display:grid;gap:.9rem;max-width:620px;margin:0 auto 2rem;
+}
+.slider-row{
+  display:grid;grid-template-columns:170px 1fr 50px;
+  align-items:center;gap:1rem;
+}
+.slider-label{font-size:.82rem;color:var(--gray)}
+.slider-label .source{
+  font-size:.62rem;color:var(--gold-dim);display:block;
+  margin-top:1px;
+}
+input[type=range]{
+  -webkit-appearance:none;width:100%;
+  height:5px;background:var(--border);
+  border-radius:3px;outline:none;
+  transition:background .2s;
+}
+input[type=range]:hover{background:var(--gray-dim)}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:16px;height:16px;
+  border-radius:50%;background:var(--teal);
+  cursor:pointer;border:2px solid var(--bg-dark);
+  box-shadow:0 0 6px rgba(0,255,136,.3);
+  transition:transform .15s;
+}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2)}
+input[type=range]::-moz-range-thumb{
+  width:16px;height:16px;border-radius:50%;
+  background:var(--teal);cursor:pointer;
+  border:2px solid var(--bg-dark);
+}
+.slider-val{
+  font-family:var(--mono);font-size:.85rem;
+  color:var(--teal);text-align:right;
+}
+.score-bars{display:grid;gap:.35rem;max-width:620px;margin:0 auto}
+.score-bar{
+  display:grid;grid-template-columns:110px 1fr;
+  align-items:center;gap:.75rem;
+}
+.score-bar .bar-label{
+  font-size:.72rem;color:var(--gray);text-align:right;
+}
+.bar-track{
+  height:26px;background:var(--bg-card);
+  border-radius:5px;overflow:hidden;
+  border:1px solid var(--border);
+}
+.bar-fill{
+  height:100%;border-radius:4px;
+  transition:width .3s ease;
+  display:flex;align-items:center;
+  padding-left:.6rem;font-size:.68rem;
+  font-family:var(--mono);color:var(--bg-dark);
+  font-weight:700;min-width:30px;
+}
+
+/* ============================================================
+   SECTION 7: ARCHITECTURE
+   ============================================================ */
+.arch-canvas{
+  width:100%;height:440px;display:block;
+  margin:0 auto 1.5rem;border-radius:12px;
+  background:var(--bg-card);border:1px solid var(--border);
+  cursor:pointer;
+}
+.module-info{
+  min-height:110px;background:var(--bg-card);
+  border:1px solid var(--border);border-radius:10px;
+  padding:1.25rem;transition:all .3s ease;
+}
+.module-info h3{font-size:1.05rem;margin-bottom:.35rem}
+.module-info .mi-desc{
+  color:var(--gray);font-size:.88rem;
+  margin-bottom:.75rem;line-height:1.55;
+}
+.module-info .mi-meta{
+  display:flex;gap:1.25rem;flex-wrap:wrap;font-size:.78rem;
+}
+.module-info .mi-meta span{color:var(--gold)}
+.module-info .mi-meta .mi-item{color:var(--gray)}
+
+/* ============================================================
+   SECTION 8: SURVIVAL CURVES
+   ============================================================ */
+.survival-intro{
+  text-align:center;color:var(--gray);
+  max-width:580px;margin:0 auto 1.5rem;
+  font-size:.88rem;line-height:1.6;
+}
+.survival-intro code{
+  background:var(--bg-card);border:1px solid var(--border);
+  padding:.1rem .35rem;border-radius:4px;
+  font-family:var(--mono);font-size:.8rem;color:var(--teal);
+}
+.survival-canvas{
+  width:100%;height:360px;display:block;
+  margin:0 auto 1.5rem;border-radius:12px;
+  background:var(--bg-card);border:1px solid var(--border);
+}
+.survival-controls{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:1rem;max-width:500px;margin:0 auto 1rem;
+}
+.sc-group{
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:8px;padding:1rem;
+}
+.sc-group label{
+  display:block;font-size:.78rem;color:var(--gray);
+  margin-bottom:.5rem;
+}
+.sc-group input[type=range]{width:100%}
+.sc-group .sc-val{
+  font-family:var(--mono);font-size:.82rem;
+  color:var(--teal);text-align:center;margin-top:.3rem;
+}
+.survival-legend{
+  display:flex;gap:1.25rem;justify-content:center;
+  margin-top:.75rem;flex-wrap:wrap;
+}
+.survival-legend .sl-item{
+  display:flex;align-items:center;gap:.35rem;
+  font-size:.72rem;color:var(--gray);
+}
+.survival-legend .sl-swatch{width:14px;height:3px;border-radius:2px}
+
+/* ============================================================
+   SECTION 9: NUMBERS
+   ============================================================ */
+.numbers-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:1.25rem;max-width:820px;margin:0 auto 3.5rem;
+}
+.number-card{
+  text-align:center;padding:1.8rem 1rem;
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:12px;transition:transform .3s,box-shadow .3s;
+}
+.number-card:hover{
+  transform:scale(1.04);
+  box-shadow:0 8px 24px rgba(0,0,0,.3);
+}
+.number-card .nc-val{
+  font-family:var(--mono);
+  font-size:clamp(1.8rem,3.5vw,2.8rem);
+  font-weight:700;color:var(--teal);
+}
+.number-card .nc-label{
+  font-size:.78rem;color:var(--gray);margin-top:.3rem;
+}
+.timeline{
+  max-width:680px;margin:0 auto;
+  position:relative;padding-left:32px;
+}
+.timeline::before{
+  content:'';position:absolute;left:11px;top:0;bottom:0;
+  width:2px;background:linear-gradient(to bottom,var(--teal-dim),var(--border));
+}
+.tl-item{
+  position:relative;margin-bottom:1.75rem;padding-left:2rem;
+}
+.tl-item::before{
+  content:'';position:absolute;left:-23px;top:5px;
+  width:10px;height:10px;border-radius:50%;
+  border:2px solid var(--teal-dim);
+  background:var(--bg-dark);
+  transition:all .3s;
+}
+.tl-item.active::before{
+  background:var(--teal);
+  box-shadow:0 0 10px rgba(0,255,136,.4);
+  border-color:var(--teal);
+}
+.tl-item h4{
+  font-size:.88rem;color:var(--gold);
+  margin-bottom:.15rem;font-family:var(--sans);
+  font-weight:600;
+}
+.tl-item p{font-size:.8rem;color:var(--gray);line-height:1.5}
+.tl-item .tl-teams{
+  display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.4rem;
+}
+.tl-item .tl-team{
+  font-size:.65rem;padding:.15rem .4rem;
+  border-radius:3px;font-family:var(--mono);
+}
+
+/* ============================================================
+   SECTION 10: TEAMS
+   ============================================================ */
+.teams-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:1.25rem;margin-bottom:3rem;
+}
+.team-card{
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:12px;padding:1.5rem;
+  position:relative;overflow:hidden;
+  transition:transform .3s,box-shadow .3s;
+}
+.team-card:hover{
+  transform:translateY(-3px);
+  box-shadow:0 8px 24px rgba(0,0,0,.3);
+}
+.team-card .tc-accent{
+  position:absolute;top:0;left:0;right:0;height:3px;
+}
+.team-card .tc-org{
+  font-family:var(--serif);font-size:1.05rem;
+  font-weight:700;margin-bottom:.2rem;
+}
+.team-card .tc-arch{
+  font-size:.78rem;color:var(--gold-dim);margin-bottom:.75rem;
+}
+.team-card .tc-mods{
+  display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.6rem;
+}
+.team-card .tc-mod{
+  background:var(--bg-hover);border:1px solid var(--border);
+  border-radius:4px;padding:.2rem .5rem;
+  font-family:var(--mono);font-size:.68rem;color:var(--gray);
+}
+.team-card .tc-lines{
+  font-family:var(--mono);font-size:.82rem;color:var(--teal);
+}
+.team-card .tc-contribution{
+  margin-top:.6rem;font-size:.75rem;color:var(--gray);
+  line-height:1.5;font-style:italic;
+}
+.footer-quote{
+  max-width:620px;margin:0 auto;text-align:center;
+  padding:3rem 2rem 2rem;
+}
+.footer-quote p{
+  font-family:var(--serif);font-style:italic;
+  color:var(--gray);font-size:1.1rem;line-height:1.65;
+}
+.footer-quote .attr{
+  color:var(--gold-dim);font-size:.82rem;
+  margin-top:.75rem;font-style:normal;
+  font-family:var(--mono);
+}
+.footer-bar{
+  text-align:center;padding:2rem;
+  color:var(--gray-dim);font-size:.72rem;
+  border-top:1px solid var(--border);
+  margin-top:1rem;font-family:var(--mono);
+  letter-spacing:.5px;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media(max-width:768px){
+  .nav-links{display:none}
+  section{padding:4.5rem 1rem 3rem}
+  .slider-row{grid-template-columns:1fr;gap:.3rem}
+  .slider-row .slider-val{text-align:left}
+  .survival-controls{grid-template-columns:1fr}
+  .debate-header{flex-wrap:wrap;gap:.5rem}
+  .debate-participants{width:100%}
+  .hero-counter{flex-direction:column;gap:.75rem}
+  .hero-counter .arrow{transform:rotate(90deg)}
+  .score-bar{grid-template-columns:80px 1fr}
+  .teams-grid{grid-template-columns:1fr}
+}
+@media(max-width:480px){
+  .top5-cards{grid-template-columns:1fr}
+  .vision-stats{grid-template-columns:repeat(2,1fr)}
+  .numbers-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     NAVIGATION
+     ============================================================ -->
+<nav class="nav">
+  <div class="nav-brand">but-ai <span>unified</span></div>
+  <div class="nav-links">
+    <a href="#hero">Home</a>
+    <a href="#field">The Field</a>
+    <a href="#visions">Five Visions</a>
+    <a href="#conversation">Conversation</a>
+    <a href="#consensus">Consensus</a>
+    <a href="#scoring">Scoring</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#survival">Survival</a>
+    <a href="#numbers">Numbers</a>
+    <a href="#teams">Teams</a>
+  </div>
+</nav>
+
+<!-- ============================================================
+     SECTION 1: THE QUESTION (HERO)
+     ============================================================ -->
+<section id="hero" class="hero">
+  <canvas id="heroCanvas"></canvas>
+  <div class="section-inner">
+    <h1 class="reveal">but-ai: The Unified<br>Memory Architecture</h1>
+    <p class="subtitle reveal reveal-delay-1">How 200 organizations answered one question &mdash;<br>and what the shape underneath looks like</p>
+    <div class="hero-counter reveal reveal-delay-2">
+      <div class="num-group">
+        <span class="num" data-target="200" data-suffix="">0</span>
+        <span class="label">proposals</span>
+      </div>
+      <div class="arrow">&rarr;</div>
+      <div class="num-group">
+        <span class="num" data-target="5" data-suffix="">0</span>
+        <span class="label">implementations</span>
+      </div>
+      <div class="arrow">&rarr;</div>
+      <div class="num-group">
+        <span class="num" data-target="1" data-suffix="">0</span>
+        <span class="label">unified crate</span>
+      </div>
+    </div>
+    <div class="hero-quote reveal reveal-delay-3">
+      <p>&ldquo;Two hundred answers to the same question. The shape underneath is clearer now.&rdquo;</p>
+      <div class="attr">&mdash; The Arbiter</div>
+    </div>
+  </div>
+  <div class="scroll-hint">scroll to explore</div>
+</section>
+
+<!-- ============================================================
+     SECTION 2: THE FIELD (200 -> 5)
+     ============================================================ -->
+<section id="field">
+  <div class="section-inner">
+    <div class="section-label reveal">chapter one</div>
+    <h2 style="text-align:center" class="reveal">The Field</h2>
+    <p class="section-desc reveal">
+      Twenty domains from maritime logistics to telecommunications.
+      Ten organizational philosophies from anarchist collectives to religious orders.
+      Two hundred unique proposals for how agent memory should work.
+    </p>
+    <div class="dot-grid reveal" id="dotGrid"></div>
+    <div class="domain-legend reveal" id="domainLegend"></div>
+    <div class="top5-cards reveal" id="top5Cards"></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SECTION 3: FIVE VISIONS
+     ============================================================ -->
+<section id="visions">
+  <div class="section-inner">
+    <div class="section-label reveal">chapter two</div>
+    <h2 style="text-align:center" class="reveal">Five Visions</h2>
+    <p class="section-desc reveal">
+      The top five organizations each built a complete implementation of the <code style="background:var(--bg-card);border:1px solid var(--border);padding:.1rem .35rem;border-radius:4px;font-family:var(--mono);font-size:.85rem;color:var(--teal)">but-ai</code> plugin.
+      Each approached the same problem through a radically different metaphor &mdash;
+      textile, narrative, tidal, actuarial, library &mdash; and produced working Rust code.
+    </p>
+    <div class="visions-tabs reveal" id="visionTabs"></div>
+    <div id="visionPanels"></div>
+    <div class="totals-bar reveal">
+      <div class="ti"><span class="v">18,194</span><span class="l">total lines</span></div>
+      <div class="ti"><span class="v">79</span><span class="l">source files</span></div>
+      <div class="ti"><span class="v">22</span><span class="l">agents deployed</span></div>
+      <div class="ti"><span class="v">5</span><span class="l">implementations</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SECTION 4: THE CONVERSATION
+     ============================================================ -->
+<section id="conversation">
+  <div class="section-inner">
+    <div class="section-label reveal">chapter three</div>
+    <h2 style="text-align:center" class="reveal">The Conversation</h2>
+    <p class="section-desc reveal">
+      Each architect read all five implementations, then sent three probing questions
+      to each of the other four. Sixty questions. Sixty answers. Five integrated proposals.
+      The key debates are below &mdash; click to expand.
+    </p>
+    <canvas class="network-canvas reveal" id="networkCanvas"></canvas>
+    <div class="debates reveal" id="debates"></div>
+    <div class="conv-stats reveal">
+      <div class="cs">
+        <span class="v" data-target="60" data-suffix="">0</span>
+        <span class="l">questions asked</span>
+      </div>
+      <div class="cs">
+        <span class="v" data-target="60" data-suffix="">0</span>
+        <span class="l">answers given</span>
+      </div>
+      <div class="cs">
+        <span class="v" data-target="5" data-suffix="">0</span>
+        <span class="l">integrated proposals</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SECTION 5: THE CONSENSUS
+     ============================================================ -->
+<section id="consensus">
+  <div class="section-inner">
+    <div class="section-label reveal">chapter four</div>
+    <h2 style="text-align:center" class="reveal">The Consensus</h2>
+    <p class="section-desc reveal">
+      After reading each other's code and debating the trade-offs, all five organizations
+      converged on seven design decisions &mdash; unanimously, without arbitration.
+    </p>
+    <div class="consensus-list reveal" id="consensusList"></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SECTION 6: THE SCORING FORMULA
+     ============================================================ -->
+<section id="scoring">
+  <div class="section-inner">
+    <div class="section-label reveal">chapter five</div>
+    <h2 style="text-align:center" class="reveal">The Scoring Formula</h2>
+    <p class="section-desc reveal">
+      The unified retrieval score combines six components from three different organizations.
+      Adjust the weights below to see how each signal contributes.
+    </p>
+    <div class="scoring-formula reveal">
+      score <span class="op">=</span>
+      <span class="w">w<sub>1</sub></span> <span class="op">&middot;</span> classification
+      <span class="op">+</span> <span class="w">w<sub>2</sub></span> <span class="op">&middot;</span> motif
+      <span class="op">+</span> <span class="w">w<sub>3</sub></span> <span class="op">&middot;</span> survival
+      <span class="op">+</span> <span class="w">w<sub>4</sub></span> <span class="op">&middot;</span> see_also
+      <span class="op">+</span> <span class="w">w<sub>5</sub></span> <span class="op">&middot;</span> tension
+      <span class="op">+</span> <span class="w">w<sub>6</sub></span> <span class="op">&middot;</span> circulation
+    </div>
+    <div class="sliders reveal" id="sliders"></div>
+    <div class="score-bars reveal" id="scoreBars"></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SECTION 7: THE ARCHITECTURE
+     ============================================================ -->
+<section id="architecture">
+  <div class="section-inner">
+    <div class="section-label reveal">chapter six</div>
+    <h2 style="text-align:center" class="reveal">The Architecture</h2>
+    <p class="section-desc reveal">
+      Seven modules arranged as a directed acyclic graph, built in three phases by five teams.
+      Click any module to see its description, owner, and dependencies.
+    </p>
+    <canvas class="arch-canvas reveal" id="archCanvas"></canvas>
+    <div class="module-info reveal" id="moduleInfo">
+      <h3 style="color:var(--gold)">Select a module</h3>
+      <p class="mi-desc">The unified crate is organized as a DAG of 7 modules. Phase 0 defines shared types. Phase 1 builds three independent foundations in parallel. Phase 2 integrates them. Phase 3 unifies everything into the agent lifecycle.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SECTION 8: THE SURVIVAL CURVES
+     ============================================================ -->
+<section id="survival">
+  <div class="section-inner">
+    <div class="section-label reveal">chapter seven</div>
+    <h2 style="text-align:center" class="reveal">The Survival Curves</h2>
+    <p class="survival-intro reveal">
+      Every memory entry carries a fitted survival distribution from the <code>survival/</code> module.
+      The function <code>S(t)</code> gives the probability a memory remains relevant at time <code>t</code>.
+      Below <code>S(t) = 0.25</code> it enters the moribund zone. Below <code>S(t) = 0.10</code> it is deceased.
+    </p>
+    <canvas class="survival-canvas reveal" id="survivalCanvas"></canvas>
+    <div class="survival-controls reveal">
+      <div class="sc-group">
+        <label>Weibull k (shape parameter)</label>
+        <input type="range" min="0.3" max="3" step="0.1" value="1.5" id="weibullK">
+        <div class="sc-val" id="weibullKVal">k = 1.5</div>
+      </div>
+      <div class="sc-group">
+        <label>Weibull &lambda; (scale, days)</label>
+        <input type="range" min="5" max="180" step="5" value="60" id="weibullL">
+        <div class="sc-val" id="weibullLVal">&lambda; = 60</div>
+      </div>
+    </div>
+    <div class="survival-legend reveal">
+      <div class="sl-item"><span class="sl-swatch" style="background:#00ff88"></span>Weibull S(t)</div>
+      <div class="sl-item"><span class="sl-swatch" style="background:#58a6ff"></span>Exponential S(t)</div>
+      <div class="sl-item"><span class="sl-swatch" style="background:#e6c200"></span>Bathtub S(t)</div>
+      <div class="sl-item"><span class="sl-swatch" style="background:#a34450"></span>LogNormal S(t)</div>
+      <div class="sl-item"><span class="sl-swatch" style="background:rgba(255,255,255,.12)"></span>Moribund zone</div>
+      <div class="sl-item"><span class="sl-swatch" style="background:rgba(255,60,60,.12)"></span>Deceased zone</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SECTION 9: THE NUMBERS
+     ============================================================ -->
+<section id="numbers">
+  <div class="section-inner">
+    <div class="section-label reveal">chapter eight</div>
+    <h2 style="text-align:center" class="reveal">The Numbers</h2>
+    <p class="section-desc reveal">
+      The unified <code style="background:var(--bg-card);border:1px solid var(--border);padding:.1rem .35rem;border-radius:4px;font-family:var(--mono);font-size:.85rem;color:var(--teal)">but-ai</code> crate,
+      synthesized from five competing implementations into one coherent architecture.
+    </p>
+    <div class="numbers-grid reveal" id="numbersGrid"></div>
+    <h3 class="reveal" style="text-align:center;margin-bottom:1.5rem;color:var(--gold);font-size:.95rem;font-family:var(--sans);font-weight:600">Build Timeline</h3>
+    <div class="timeline reveal" id="timeline"></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SECTION 10: THE TEAMS
+     ============================================================ -->
+<section id="teams">
+  <div class="section-inner">
+    <div class="section-label reveal">chapter nine</div>
+    <h2 style="text-align:center" class="reveal">The Teams</h2>
+    <p class="section-desc reveal">
+      Five organizations, five architects, five different domains &mdash;
+      each contributing the modules where their metaphor was strongest.
+    </p>
+    <div class="teams-grid reveal" id="teamsGrid"></div>
+    <div class="footer-quote reveal">
+      <p>&ldquo;Two hundred answers to the same question. The shape underneath is clearer now.&rdquo;</p>
+      <div class="attr">&mdash; The Arbiter</div>
+    </div>
+    <div class="footer-bar">
+      but-ai &middot; The Unified Memory Architecture &middot; 2026
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     JAVASCRIPT
+     ============================================================ -->
+<script>
+// ============================================================
+// DATA DEFINITIONS
+// ============================================================
+
+const DOMAINS = [
+  {name:'Maritime Logistics',color:'#2188ff'},
+  {name:'Archaeological Preservation',color:'#c9510c'},
+  {name:'Music Production',color:'#a371f7'},
+  {name:'Agricultural Automation',color:'#3fb950'},
+  {name:'Space Debris Tracking',color:'#8b949e'},
+  {name:'Public Transit',color:'#f0883e'},
+  {name:'Culinary Arts',color:'#da3633'},
+  {name:'Wildlife Conservation',color:'#56d364'},
+  {name:'Fashion Design',color:'#d2a8ff'},
+  {name:'Insurance Actuarial',color:'#79c0ff'},
+  {name:'Sports Analytics',color:'#ffa657'},
+  {name:'Emergency Medicine',color:'#ff7b72'},
+  {name:'Mining Engineering',color:'#7ee787'},
+  {name:'Theater Production',color:'#d29922'},
+  {name:'Library Science',color:'#a5d6ff'},
+  {name:'Forensic Accounting',color:'#f778ba'},
+  {name:'Urban Planning',color:'#bb8009'},
+  {name:'Perfume Chemistry',color:'#e3b341'},
+  {name:'Competitive Gaming',color:'#bc8cff'},
+  {name:'Telecommunications',color:'#39d353'}
+];
+
+const TOP5 = [
+  {
+    rank: 1, num: '001',
+    name: 'Tidal Protocol Collective',
+    domain: 'Maritime Logistics',
+    philosophy: 'Anarchist Collective',
+    memory: 'CRDT manifest + tidal coordination',
+    color: '#2188ff', score: 92.4,
+    metaphor: 'Tidal',
+    agents: ['Dara (Patch Architect)', 'Keel (Navigator)', 'Bilge (Memory Keeper)', 'Stern (Quality)'],
+    innovation: 'CRDT-based manifest memory with consensus-weighted scoring. Tidal coordination clock with four phases (flood/high/ebb/low) governs agent synchronization across repositories. Gossip protocol enables memory convergence without a central authority.',
+    contribution: 'Coordination protocols, CRDT gossip, forge adapter, consensus validation.',
+    lines: 3842, files: 16
+  },
+  {
+    rank: 2, num: '083',
+    name: 'Textile Morphology Lab',
+    domain: 'Fashion Design',
+    philosophy: 'Academic Research Lab',
+    memory: 'Warp/weft threads + weave patterns',
+    color: '#d2a8ff', score: 91.8,
+    metaphor: 'Textile',
+    agents: ['Tanaka (Structural Spine)', 'Osei (Pattern Memory)', 'Marchetti (Shuttle/Coordination)', 'Nakamura (Coordination)', 'Lindqvist (Quality Review)'],
+    innovation: 'Two-tier memory: warp threads (persistent/structural) and weft threads (ephemeral/task-specific). Three adaptive retrieval patterns (plain/twill/satin) adjust retrieval density based on task familiarity. Weft-to-warp promotion for recurring knowledge.',
+    contribution: 'Memory module, warp/weft separation, adaptive retrieval, validation co-ownership.',
+    lines: 4120, files: 17
+  },
+  {
+    rank: 3, num: '084',
+    name: 'Loom & Verse',
+    domain: 'Fashion Design',
+    philosophy: 'Artist Commune',
+    memory: 'Narrative arcs + motif resonance',
+    color: '#bc8cff', score: 90.6,
+    metaphor: 'Narrative',
+    agents: ['Hartmann (Coordinator/Publisher)', 'Brenner (Motif Tracker)', 'Sato (Continuity Checker)', 'Weber (Summarizer)'],
+    innovation: 'Memory as narrative: chapters grouped into arcs, with motifs emerging from recurring themes across 3+ chapters. Tension tracking detects contradictions. Motif resonance replaces keyword matching with thematic similarity.',
+    contribution: 'Narrative module, motif tracking, tension detection, validation co-ownership.',
+    lines: 3650, files: 15
+  },
+  {
+    rank: 4, num: '093',
+    name: 'Longevity & Risk Research Centre',
+    domain: 'Insurance Actuarial',
+    philosophy: 'Academic Research Lab',
+    memory: 'Survival functions + hazard rates',
+    color: '#79c0ff', score: 90.1,
+    metaphor: 'Actuarial',
+    agents: ['Vassiliev (Principal Investigator)', 'Adeyemi (Research Fellow)', 'Chen (Statistician)', 'Abebe (Memory Curator)', 'Santos (Study Coordinator)'],
+    innovation: 'Actuarial mathematics for memory expiration. Each entry carries a fitted survival distribution (Weibull, Exponential, Bathtub, LogNormal). Three-state lifecycle (alive/moribund/deceased) with surprise index for access-pattern drift detection.',
+    contribution: 'Survival module, distribution fitting, hazard monitoring, types co-ownership.',
+    lines: 3380, files: 14
+  },
+  {
+    rank: 5, num: '145',
+    name: 'ShelfOS',
+    domain: 'Library Science',
+    philosophy: 'Startup Hustle',
+    memory: 'Card catalog + call numbers + see-also graph',
+    color: '#a5d6ff', score: 89.3,
+    metaphor: 'Library',
+    agents: ['Shelver (Cataloger)', 'Circulator (Access Manager)', 'Acquisitor (New Memory)', 'Deaccessioner (Expiry)'],
+    innovation: 'Library science applied to agent memory. Five classification systems (subject headings, call numbers, source, temporal, relational). See-also cross-reference graph with BFS traversal. Controlled vocabulary for term normalization. Phase-gated agent lifecycle.',
+    contribution: 'Catalog module, classification systems, see-also graph, types co-ownership.',
+    lines: 3202, files: 17
+  }
+];
+
+const DEBATES = [
+  {
+    from: 'Vassiliev', fromOrg: '093', fromColor: '#79c0ff',
+    to: 'Tanaka', toOrg: '083', toColor: '#d2a8ff',
+    question: '"Your decay model is misspecified"',
+    fullQ: 'Your warp threads have a tension_decay factor of 0.95 applied daily. This produces exponential decay -- which is precisely the distribution I would assign to the least durable memory type (bug fixes). Architectural memories empirically exhibit Weibull mortality (increasing hazard rate, not constant). Has the Lab considered that a single decay model may be misspecified for memories with heterogeneous mortality patterns? What is the confidence interval on that 0.95 parameter?',
+    answer: 'You are correct that our exponential decay is misspecified for architectural memories. A warp thread representing "the auth module uses middleware chain pattern" should have an increasing hazard rate (Weibull with k > 1). Our 0.95 decay factor was chosen for simplicity, not from empirical calibration. There is no confidence interval because there was no fitting. For an integrated system, I would replace our single tension_decay with your SurvivalDistribution struct.',
+    resolution: 'Each memory entry carries a fitted survival distribution instead of a single decay constant. Structural warp threads get Weibull(k=1.8, lambda=180), convention threads get Bathtub, preference threads get Exponential.'
+  },
+  {
+    from: 'Tanaka', fromOrg: '083', fromColor: '#d2a8ff',
+    to: 'Hartmann', toOrg: '084', toColor: '#bc8cff',
+    question: '"How do motifs bootstrap?"',
+    fullQ: 'Your motif threshold requires 3 appearances before a theme becomes a motif. In a new project with few chapters, this means no motifs exist for retrieval, and the 30% motif_resonance component of your scoring formula returns 0.0 for all queries. How does Loom & Verse handle the early chapters when no motifs have emerged? Does Brenner use a different retrieval strategy during cold-start?',
+    answer: 'You have identified the single most significant weakness in our memory model. The cold-start problem is real. During the first ~10 chapters, motif_resonance returns 0.0 for all queries, and retrieval degrades to a 70%-weighted subset. Your suggestion of "proto-motifs" is one we should have thought of. The MotifTracker should expose a find_proto_resonant method that searches themes with 1-2 appearances, returning them with a reduced resonance weight (0.3x instead of 1.0x per appearance).',
+    resolution: 'Proto-motif system adopted. Themes with 1-2 appearances are searchable at 0.3x weight. Cold-start retrieval becomes a gradual ramp-up instead of a cliff edge.'
+  },
+  {
+    from: 'Hartmann', fromOrg: '084', fromColor: '#bc8cff',
+    to: 'Dara', toOrg: '001', toColor: '#2188ff',
+    question: '"Consensus degrades in small teams"',
+    fullQ: 'Your consensus_weight is computed as the proportion of agents that have cited a memory. With only 2 agents, consensus_weight is either 0.5 or 1.0 -- a binary signal masquerading as a continuous one. Does the Tidal Protocol have a minimum team size for meaningful consensus, or do you accept degraded consensus quality in small teams?',
+    answer: 'You are right. With fewer than 4 agents, consensus weight becomes a coarse-grained signal. Our CRDTs still ensure convergence, but the signal quality is low. We would accept degraded quality and compensate by increasing the weight of other retrieval signals -- motif resonance, call number proximity -- for small teams. Consensus weight works best as a trust indicator, not a retrieval score.',
+    resolution: 'Consensus weight moved from retrieval scoring to a separate trust tier. Motif resonance (from Loom & Verse) replaces it in the primary scoring formula.'
+  },
+  {
+    from: 'Vassiliev', fromOrg: '093', fromColor: '#79c0ff',
+    to: 'Shelver', toOrg: '145', toColor: '#a5d6ff',
+    question: '"Binary deaccession loses information"',
+    fullQ: 'Your deaccession process has three binary triggers: TTL expiry without recent access, source file deletion, and supersession by a newer memory. All three are binary decisions. A memory at 12% survival probability is not the same as one at 87%, and the system should reflect this gradient. Has ShelfOS considered a continuous deaccession model where memories have a relevance probability that smoothly decays?',
+    answer: 'The cost of a false deaccession is real -- re-acquiring lost knowledge requires re-reading source files, re-running commands, and re-synthesizing context. Your survival probability approach replaces our binary TTL with a continuous signal that captures the gradient you describe. I would adopt your model, keeping our circulation tracking as a covariate for fitting the survival distribution rather than as an independent TTL trigger.',
+    resolution: 'ShelfOS circulation frequency becomes an input covariate for survival distribution fitting. Binary TTL replaced by probabilistic expiration via the LRRC survival model.'
+  }
+];
+
+const CONSENSUS = [
+  {text: '<strong>Git refs for storage</strong> &mdash; No SQLite, no external databases. Every memory lives in <code style="font-family:var(--mono);font-size:.82rem;color:var(--teal)">refs/but-ai/</code>. The strongest consensus signal: every organization agreed independently.'},
+  {text: '<strong>Three-state lifecycle</strong> &mdash; Alive &rarr; Moribund &rarr; Deceased. The intermediate moribund state prevents premature expiration by giving the memory curator a chance to review before final deletion.'},
+  {text: '<strong>Survival distributions for expiration</strong> &mdash; Weibull, Exponential, Bathtub, LogNormal. Each memory entry carries its own fitted distribution. No more global TTLs or fixed decay constants.'},
+  {text: '<strong>Hybrid retrieval</strong> &mdash; Six-component scoring combining classification (ShelfOS), motif resonance (Loom & Verse), survival probability (LRRC), see-also distance (ShelfOS), tension urgency (Loom & Verse), and circulation (Tidal Protocol).'},
+  {text: '<strong>Four agent roles</strong> &mdash; Architect (structural decisions), Implementer (code production), Reviewer (quality verification), Coordinator (cross-agent synchronization). Each role maps to a phase.'},
+  {text: '<strong>Phase-gated tools</strong> &mdash; Agents unlock capabilities progressively: study &rarr; plan &rarr; implement &rarr; review. Monotonic transitions -- once a phase is exited, it cannot be re-entered.'},
+  {text: '<strong>Mandatory cataloging reserve</strong> &mdash; 15% of the token budget is reserved exclusively for memory cataloging. This budget cannot be raided for implementation, ensuring memories are always properly classified.'}
+];
+
+const SCORING_COMPONENTS = [
+  {name: 'Classification', source: 'ShelfOS (145)', weight: 25, color: '#a5d6ff'},
+  {name: 'Motif resonance', source: 'Loom & Verse (084)', weight: 20, color: '#bc8cff'},
+  {name: 'Survival prob.', source: 'LRRC (093)', weight: 20, color: '#79c0ff'},
+  {name: 'See-also dist.', source: 'ShelfOS (145)', weight: 15, color: '#a5d6ff'},
+  {name: 'Tension urgency', source: 'Loom & Verse (084)', weight: 10, color: '#bc8cff'},
+  {name: 'Circulation', source: 'Tidal Protocol (001)', weight: 10, color: '#2188ff'}
+];
+
+const MODULES = [
+  {id: 'types', name: 'types.rs', x: .5, y: .07, phase: 0, team: 'All 5 teams', color: '#e6c200', lines: 340,
+   desc: 'Unified type system shared by every module. Defines MemoryEntry, LifecycleState (Alive/Moribund/Deceased), Classification, SurvivalDistribution, MotifId, CallNumber, and the six-component RetrievalScore. The single source of truth for all data structures.', deps: []},
+  {id: 'memory', name: 'memory/', x: .17, y: .34, phase: 1, team: 'Textile Morphology Lab (083)', color: '#d2a8ff', lines: 1420,
+   desc: 'Unified memory system. Warp/weft thread management from 083, weft-to-warp promotion with diversity checks from the Tanaka-Hartmann exchange, expiration delegates to survival/, archive module for deaccessioned entries from 145.', deps: ['types']},
+  {id: 'survival', name: 'survival/', x: .5, y: .34, phase: 1, team: 'LRRC (093)', color: '#79c0ff', lines: 1180,
+   desc: 'Statistical expiration engine. Four distribution families (Weibull, Exponential, Bathtub, LogNormal), MLE parameter estimation with AIC-based model selection, real-time hazard rate monitoring, surprise index via KL divergence for detecting access-pattern drift.', deps: ['types']},
+  {id: 'coordination', name: 'coordination/', x: .83, y: .34, phase: 1, team: 'Tidal Protocol (001)', color: '#2188ff', lines: 980,
+   desc: 'Multi-agent coordination. CRDT gossip protocol for memory synchronization, consensus validation for trust assessment, forge adapter trait for Git-forge integration, unified PR comment schema, tidal coordination clock with four-phase cycle.', deps: ['types']},
+  {id: 'narrative', name: 'narrative/', x: .22, y: .58, phase: 2, team: 'Loom & Verse (084)', color: '#bc8cff', lines: 1350,
+   desc: 'Thematic layer. Motif tracking with proto-motif cold-start support (from Tanaka critique), contradiction detection with cross-arc tension propagation, arc lifecycle management with tension-aware dormancy prevention (arcs with active tensions cannot go dormant).', deps: ['types', 'memory']},
+  {id: 'catalog', name: 'catalog/', x: .62, y: .58, phase: 2, team: 'ShelfOS (145)', color: '#a5d6ff', lines: 1240,
+   desc: 'Classification and retrieval. Five classification systems (subject headings, call numbers, source, temporal, relational), hierarchical call number with O(1) positional lookup, see-also cross-reference graph with BFS traversal, controlled vocabulary normalization, unified six-component retrieval scoring.', deps: ['types', 'survival']},
+  {id: 'validation', name: 'validation/', x: .35, y: .76, phase: 2, team: 'Textile + Loom & Verse', color: '#ffa657', lines: 580,
+   desc: 'Output validation. Local integrity checks (selvedge module from 083), cross-repo narrative consistency (Sato continuity checker from 084), memory coherence verification ensuring no contradictions pass undetected.', deps: ['memory', 'narrative']},
+  {id: 'agent', name: 'agent/', x: .62, y: .91, phase: 3, team: 'All 5 teams', color: '#e6c200', lines: 1418,
+   desc: 'Agent lifecycle. Phase-gated execution from ShelfOS (study/plan/implement/review), weave pattern selection with hysteresis from the Hartmann-Tanaka exchange, token budget with mandatory 15% cataloging reserve and monotonic phase transitions.', deps: ['types', 'memory', 'survival', 'coordination', 'narrative', 'catalog', 'validation']}
+];
+
+const NUMBERS = [
+  {val: 9508, label: 'Lines of Rust', icon: ''},
+  {val: 43, label: 'Source files', icon: ''},
+  {val: 7, label: 'Modules', icon: ''},
+  {val: 4, label: 'Agent roles', icon: ''},
+  {val: 6, label: 'Task phases', icon: ''},
+  {val: 5, label: 'Teams', icon: ''}
+];
+
+const TIMELINE = [
+  {phase: 'Phase 0', title: 'Skeleton & Types', desc: 'Shared type definitions, crate scaffold, CI configuration. All teams contribute to types.rs.', teams: [{name: 'All', color: '#e6c200'}], active: true},
+  {phase: 'Phase 1', title: 'Memory + Survival + Coordination', desc: 'Three independent modules built in parallel. No cross-dependencies between them.', teams: [{name: '083', color: '#d2a8ff'}, {name: '093', color: '#79c0ff'}, {name: '001', color: '#2188ff'}], active: true},
+  {phase: 'Phase 2', title: 'Narrative + Catalog + Validation', desc: 'Integration modules connecting Phase 1 outputs. narrative/ depends on memory/, catalog/ depends on survival/.', teams: [{name: '084', color: '#bc8cff'}, {name: '145', color: '#a5d6ff'}, {name: '083+084', color: '#ffa657'}], active: true},
+  {phase: 'Phase 3', title: 'Agent Lifecycle', desc: 'Unified agent module consuming all other modules. Phase-gated execution, budget management, weave pattern selection.', teams: [{name: 'All', color: '#e6c200'}], active: false}
+];
+
+const TEAMS = [
+  {org: 'Tidal Protocol Collective', num: '001', arch: 'Dara, Patch Architect', mods: ['coordination/', 'protocol/'], lines: 980, color: '#2188ff', contribution: 'Brought the coordination layer: CRDT gossip for memory sync across agents, consensus validation as a trust signal, and the tidal clock that sequences multi-agent work.'},
+  {org: 'Textile Morphology Lab', num: '083', arch: 'Dr. Yuki Tanaka-Rhodes', mods: ['memory/', 'validation/ (co)'], lines: 1720, color: '#d2a8ff', contribution: 'Contributed the memory architecture: the warp/weft split between persistent and ephemeral knowledge, adaptive retrieval density, and the selvedge integrity checker.'},
+  {org: 'Loom & Verse', num: '084', arch: 'Kenji Hartmann', mods: ['narrative/', 'validation/ (co)'], lines: 1640, color: '#bc8cff', contribution: 'Built the narrative layer: motif tracking that replaces keyword matching with thematic resonance, tension detection for contradictions, and the continuity checker.'},
+  {org: 'Longevity & Risk Research Centre', num: '093', arch: 'Prof. Elena Vassiliev', mods: ['survival/', 'types.rs (co)'], lines: 1520, color: '#79c0ff', contribution: 'Provided the mathematical foundation: survival distributions for memory expiration, hazard rate monitoring, surprise index for drift detection, and the three-state lifecycle.'},
+  {org: 'ShelfOS', num: '145', arch: 'Shelver', mods: ['catalog/', 'types.rs (co)'], lines: 1580, color: '#a5d6ff', contribution: 'Delivered the classification engine: five-system cataloging, call number hierarchy, see-also cross-reference graph, controlled vocabulary, and the phase-gated agent lifecycle.'}
+];
+
+// ============================================================
+// HERO PARTICLE CANVAS
+// ============================================================
+
+(function heroParticles() {
+  const canvas = document.getElementById('heroCanvas');
+  const ctx = canvas.getContext('2d');
+  let W, H;
+  const particles = [];
+  const PARTICLE_COUNT = 80;
+  const COLORS = ['#e6c200', '#00ff88', '#58a6ff', '#d2a8ff', '#79c0ff'];
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+
+  function init() {
+    resize();
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      particles.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        r: Math.random() * 2 + 0.5,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+        alpha: Math.random() * 0.3 + 0.05
+      });
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Draw connections
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 150) {
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `rgba(230,194,0,${0.04 * (1 - dist / 150)})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Draw particles
+    particles.forEach(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < 0 || p.x > W) p.vx *= -1;
+      if (p.y < 0 || p.y > H) p.vy *= -1;
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = p.alpha;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+
+    requestAnimationFrame(draw);
+  }
+
+  init();
+  draw();
+  window.addEventListener('resize', resize);
+})();
+
+// ============================================================
+// SCROLL REVEAL OBSERVER
+// ============================================================
+
+const revealObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+      // Trigger consensus animation if this is the consensus list
+      if (e.target.id === 'consensusList') animateConsensus();
+      revealObserver.unobserve(e.target);
+    }
+  });
+}, {threshold: 0.12, rootMargin: '0px 0px -40px 0px'});
+
+document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+// Active nav tracking
+const navLinks = document.querySelectorAll('.nav-links a');
+const sectionObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const id = e.target.id;
+      navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + id));
+    }
+  });
+}, {threshold: 0.25});
+document.querySelectorAll('section').forEach(s => sectionObserver.observe(s));
+
+// ============================================================
+// ANIMATED COUNTERS
+// ============================================================
+
+const counterObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.querySelectorAll('[data-target]').forEach(el => {
+        if (el.dataset.animated) return;
+        el.dataset.animated = '1';
+        const target = parseInt(el.dataset.target);
+        const suffix = el.dataset.suffix || '';
+        const duration = 2000;
+        const start = performance.now();
+        function tick(now) {
+          const elapsed = now - start;
+          const progress = Math.min(elapsed / duration, 1);
+          const eased = 1 - Math.pow(1 - progress, 4);
+          el.textContent = Math.round(target * eased).toLocaleString() + suffix;
+          if (progress < 1) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      });
+      counterObserver.unobserve(e.target);
+    }
+  });
+}, {threshold: 0.3});
+
+document.querySelectorAll('.hero-counter, .conv-stats, .numbers-grid').forEach(el => counterObserver.observe(el));
+
+// ============================================================
+// SECTION 2: DOT GRID + TOP 5 CARDS
+// ============================================================
+
+(function buildField() {
+  const grid = document.getElementById('dotGrid');
+  const legend = document.getElementById('domainLegend');
+  const cardsContainer = document.getElementById('top5Cards');
+  const top5Nums = TOP5.map(o => parseInt(o.num));
+
+  // 200 dots
+  for (let i = 1; i <= 200; i++) {
+    const domainIdx = Math.floor((i - 1) / 10);
+    const d = document.createElement('div');
+    d.className = 'dot';
+    d.style.backgroundColor = DOMAINS[domainIdx].color;
+    d.title = `Org ${String(i).padStart(3, '0')} \u2014 ${DOMAINS[domainIdx].name}`;
+    if (top5Nums.includes(i)) {
+      d.classList.add('top5');
+      const t = TOP5.find(o => parseInt(o.num) === i);
+      d.title += ` \u2014 ${t.name} (Rank #${t.rank})`;
+    }
+    grid.appendChild(d);
+  }
+
+  // Domain legend
+  DOMAINS.forEach(dm => {
+    const item = document.createElement('div');
+    item.className = 'item';
+    item.innerHTML = `<span class="swatch" style="background:${dm.color}"></span>${dm.name}`;
+    legend.appendChild(item);
+  });
+
+  // Top 5 cards
+  TOP5.forEach(org => {
+    const card = document.createElement('div');
+    card.className = 'top5-card';
+    card.innerHTML = `
+      <div class="accent-bar" style="background:${org.color}"></div>
+      <div class="rank-badge">#${org.rank}</div>
+      <div class="org-name" style="color:${org.color}">${org.name}</div>
+      <div class="org-domain">${org.domain}</div>
+      <div class="org-philosophy">${org.philosophy}</div>
+      <div class="org-memory">${org.memory}</div>
+      <div class="org-score">Score: ${org.score}</div>
+    `;
+    cardsContainer.appendChild(card);
+  });
+})();
+
+// ============================================================
+// SECTION 3: FIVE VISIONS (TABBED)
+// ============================================================
+
+(function buildVisions() {
+  const tabs = document.getElementById('visionTabs');
+  const panels = document.getElementById('visionPanels');
+  const ICONS = {Tidal: '\u{1F30A}', Textile: '\u{1F9F5}', Narrative: '\u{1F4D6}', Actuarial: '\u{1F4CA}', Library: '\u{1F4DA}'};
+
+  TOP5.forEach((org, i) => {
+    // Tab button
+    const tab = document.createElement('button');
+    tab.className = 'vtab' + (i === 0 ? ' active' : '');
+    tab.textContent = org.name;
+    tab.onclick = () => {
+      document.querySelectorAll('.vtab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.vision-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('vision-' + i).classList.add('active');
+    };
+    tabs.appendChild(tab);
+
+    // Panel
+    const panel = document.createElement('div');
+    panel.className = 'vision-panel' + (i === 0 ? ' active' : '');
+    panel.id = 'vision-' + i;
+    panel.innerHTML = `
+      <div class="vision-header">
+        <div class="vision-icon" style="background:${org.color}18;border:2px solid ${org.color}">
+          ${ICONS[org.metaphor]}
+        </div>
+        <div class="vision-meta">
+          <h3 style="color:${org.color}">${org.name} <span style="font-size:.7em;color:var(--gray);font-weight:400">(${org.num})</span></h3>
+          <div class="metaphor">The ${org.metaphor} metaphor &mdash; Score: ${org.score}</div>
+        </div>
+      </div>
+      <div class="vision-stats">
+        <div class="vstat"><div class="val">${org.lines.toLocaleString()}</div><div class="lbl">Lines of Rust</div></div>
+        <div class="vstat"><div class="val">${org.files}</div><div class="lbl">Source files</div></div>
+        <div class="vstat"><div class="val">${org.agents.length}</div><div class="lbl">Agents</div></div>
+        <div class="vstat"><div class="val">#${org.rank}</div><div class="lbl">Overall rank</div></div>
+      </div>
+      <div class="vision-innovation">
+        <h4>Key Innovation</h4>
+        <p>${org.innovation}</p>
+      </div>
+      <div style="font-size:.82rem;color:var(--gray);margin-bottom:.6rem;line-height:1.5">
+        <strong style="color:var(--gold);font-size:.75rem;text-transform:uppercase;letter-spacing:.5px">Unified contribution:</strong>
+        ${org.contribution}
+      </div>
+      <div class="vision-agents">
+        ${org.agents.map(a => `<span class="agent">${a}</span>`).join('')}
+      </div>
+    `;
+    panels.appendChild(panel);
+  });
+})();
+
+// ============================================================
+// SECTION 4: NETWORK GRAPH (Canvas)
+// ============================================================
+
+(function drawNetwork() {
+  const canvas = document.getElementById('networkCanvas');
+  const ctx = canvas.getContext('2d');
+  let W, H;
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    W = canvas.width = rect.width * dpr;
+    H = canvas.height = rect.height * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  const orgs = TOP5.map((o, i) => {
+    const angle = (i / 5) * Math.PI * 2 - Math.PI / 2;
+    return {...o, angle, px: 0, py: 0};
+  });
+
+  let animFrame = 0;
+  let messageParticles = [];
+
+  // Message labels for specific connections
+  const messageLabels = [
+    {from: 3, to: 1, label: 'decay misspecified'},  // Vassiliev -> Tanaka
+    {from: 1, to: 2, label: 'motif cold-start'},     // Tanaka -> Hartmann
+    {from: 2, to: 0, label: 'consensus quality'},     // Hartmann -> Dara
+    {from: 3, to: 4, label: 'binary deaccession'},    // Vassiliev -> Shelver
+  ];
+
+  function draw() {
+    const w = W / (window.devicePixelRatio || 1);
+    const h = H / (window.devicePixelRatio || 1);
+    ctx.clearRect(0, 0, w, h);
+
+    const cx = w / 2, cy = h / 2;
+    const radius = Math.min(w, h) * 0.34;
+
+    // Position nodes
+    orgs.forEach((o, i) => {
+      o.px = cx + Math.cos(o.angle) * radius;
+      o.py = cy + Math.sin(o.angle) * radius;
+    });
+
+    // Draw connections with varying opacity
+    for (let i = 0; i < orgs.length; i++) {
+      for (let j = i + 1; j < orgs.length; j++) {
+        const isDebateConnection = messageLabels.some(m =>
+          (m.from === i && m.to === j) || (m.from === j && m.to === i)
+        );
+        ctx.beginPath();
+        ctx.moveTo(orgs[i].px, orgs[i].py);
+        ctx.lineTo(orgs[j].px, orgs[j].py);
+        ctx.strokeStyle = isDebateConnection ? 'rgba(230,194,0,.18)' : 'rgba(88,166,255,.08)';
+        ctx.lineWidth = isDebateConnection ? 1.5 : 0.5;
+        ctx.stroke();
+      }
+    }
+
+    // Spawn message particles
+    if (animFrame % 25 === 0 && messageParticles.length < 25) {
+      const i = Math.floor(Math.random() * 5);
+      let j = Math.floor(Math.random() * 5);
+      while (j === i) j = Math.floor(Math.random() * 5);
+      messageParticles.push({
+        from: i, to: j, t: 0,
+        speed: 0.006 + Math.random() * 0.008,
+        color: orgs[i].color
+      });
+    }
+
+    messageParticles = messageParticles.filter(p => p.t <= 1);
+    messageParticles.forEach(p => {
+      p.t += p.speed;
+      const x = orgs[p.from].px + (orgs[p.to].px - orgs[p.from].px) * p.t;
+      const y = orgs[p.from].py + (orgs[p.to].py - orgs[p.from].py) * p.t;
+
+      // Trail
+      const trailAlpha = (1 - p.t) * 0.3;
+      ctx.beginPath();
+      ctx.arc(x, y, 2, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = trailAlpha + 0.3;
+      ctx.fill();
+
+      // Glow
+      ctx.beginPath();
+      ctx.arc(x, y, 6, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = trailAlpha * 0.3;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+
+    // Draw nodes
+    orgs.forEach((o, i) => {
+      // Outer glow
+      const grad = ctx.createRadialGradient(o.px, o.py, 0, o.px, o.py, 32);
+      grad.addColorStop(0, o.color + '25');
+      grad.addColorStop(1, 'transparent');
+      ctx.beginPath();
+      ctx.arc(o.px, o.py, 32, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Circle body
+      ctx.beginPath();
+      ctx.arc(o.px, o.py, 20, 0, Math.PI * 2);
+      ctx.fillStyle = '#161b22';
+      ctx.fill();
+      ctx.strokeStyle = o.color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Org number inside
+      ctx.fillStyle = o.color;
+      ctx.font = 'bold 11px -apple-system,sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(o.num, o.px, o.py);
+
+      // Name label
+      const labelY = o.py > cy ? o.py + 36 : o.py - 32;
+      ctx.fillStyle = '#8b949e';
+      ctx.font = '10px -apple-system,sans-serif';
+      ctx.textBaseline = 'middle';
+      const shortName = o.name.length > 18 ? o.name.substring(0, 18) + '...' : o.name;
+      ctx.fillText(shortName, o.px, labelY);
+    });
+
+    // Center label
+    ctx.fillStyle = '#30363d';
+    ctx.font = '9px SF Mono,monospace';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('60 questions', cx, cy - 6);
+    ctx.fillText('60 answers', cx, cy + 6);
+
+    animFrame++;
+    requestAnimationFrame(draw);
+  }
+
+  resize();
+  draw();
+  window.addEventListener('resize', resize);
+})();
+
+// ============================================================
+// SECTION 4: DEBATES
+// ============================================================
+
+(function buildDebates() {
+  const container = document.getElementById('debates');
+  DEBATES.forEach(d => {
+    const div = document.createElement('div');
+    div.className = 'debate';
+    div.innerHTML = `
+      <div class="debate-header" onclick="this.parentElement.classList.toggle('open')">
+        <span class="debate-arrow">\u25B6</span>
+        <div class="debate-participants">
+          <span class="debate-from">${d.from} (${d.fromOrg})</span>
+          <span class="debate-dir">\u2192</span>
+          <span class="debate-to">${d.to} (${d.toOrg})</span>
+        </div>
+        <span class="debate-q">${d.question}</span>
+      </div>
+      <div class="debate-body">
+        <div class="debate-full-q"><strong>Question:</strong> ${d.fullQ}</div>
+        <div class="debate-answer"><strong>Answer:</strong> ${d.answer}</div>
+        <div class="debate-resolution">\u2713 Resolution: ${d.resolution}</div>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+})();
+
+// ============================================================
+// SECTION 5: CONSENSUS ANIMATION
+// ============================================================
+
+(function buildConsensus() {
+  const list = document.getElementById('consensusList');
+  CONSENSUS.forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'consensus-item';
+    item.innerHTML = `
+      <div class="consensus-check">\u2713</div>
+      <div class="consensus-text">${c.text}</div>
+    `;
+    list.appendChild(item);
+  });
+})();
+
+function animateConsensus() {
+  const items = document.querySelectorAll('.consensus-item');
+  items.forEach((item, i) => {
+    setTimeout(() => item.classList.add('checked'), 200 + i * 350);
+  });
+}
+
+// ============================================================
+// SECTION 6: SCORING SLIDERS
+// ============================================================
+
+(function buildScoring() {
+  const slidersContainer = document.getElementById('sliders');
+  const barsContainer = document.getElementById('scoreBars');
+  const weights = SCORING_COMPONENTS.map(c => c.weight);
+
+  SCORING_COMPONENTS.forEach((comp, i) => {
+    // Slider row
+    const row = document.createElement('div');
+    row.className = 'slider-row';
+    row.innerHTML = `
+      <div class="slider-label">${comp.name}<span class="source">${comp.source}</span></div>
+      <input type="range" min="0" max="50" value="${comp.weight}" data-idx="${i}">
+      <div class="slider-val" id="sv${i}">${comp.weight}%</div>
+    `;
+    slidersContainer.appendChild(row);
+
+    // Bar
+    const bar = document.createElement('div');
+    bar.className = 'score-bar';
+    bar.innerHTML = `
+      <div class="bar-label">${comp.name}</div>
+      <div class="bar-track">
+        <div class="bar-fill" id="bf${i}" style="width:${comp.weight}%;background:${comp.color}">${comp.weight}%</div>
+      </div>
+    `;
+    barsContainer.appendChild(bar);
+  });
+
+  // Live update handler
+  slidersContainer.addEventListener('input', (e) => {
+    if (e.target.type !== 'range') return;
+    const idx = parseInt(e.target.dataset.idx);
+    weights[idx] = parseInt(e.target.value);
+
+    const total = weights.reduce((a, b) => a + b, 0);
+    weights.forEach((w, i) => {
+      const pct = total > 0 ? Math.round(w / total * 100) : 0;
+      document.getElementById('sv' + i).textContent = w + '%';
+      const fill = document.getElementById('bf' + i);
+      fill.style.width = pct + '%';
+      fill.textContent = pct + '%';
+    });
+  });
+})();
+
+// ============================================================
+// SECTION 7: ARCHITECTURE DAG (Canvas)
+// ============================================================
+
+(function drawArchitecture() {
+  const canvas = document.getElementById('archCanvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, hoveredModule = null;
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    W = canvas.width = rect.width * dpr;
+    H = canvas.height = rect.height * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function getPositions() {
+    const w = W / (window.devicePixelRatio || 1);
+    const h = H / (window.devicePixelRatio || 1);
+    const padX = 60, padY = 30;
+    return MODULES.map(m => ({
+      ...m,
+      px: m.x * (w - padX * 2) + padX,
+      py: m.y * (h - padY * 2) + padY
+    }));
+  }
+
+  function draw() {
+    const w = W / (window.devicePixelRatio || 1);
+    const h = H / (window.devicePixelRatio || 1);
+    ctx.clearRect(0, 0, w, h);
+
+    const mods = getPositions();
+
+    // Phase labels
+    const phases = [
+      {y: 0.07, label: 'Phase 0: Types'},
+      {y: 0.34, label: 'Phase 1: Foundations'},
+      {y: 0.58, label: 'Phase 2: Integration'},
+      {y: 0.91, label: 'Phase 3: Agent'}
+    ];
+    phases.forEach(p => {
+      const py = p.y * (h - 60) + 30;
+      ctx.fillStyle = '#21262d';
+      ctx.font = '9px SF Mono,monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(p.label, 8, py + 3);
+    });
+
+    // Draw dependency connections
+    mods.forEach(m => {
+      m.deps.forEach(depId => {
+        const dep = mods.find(mm => mm.id === depId);
+        if (!dep) return;
+
+        const isHighlighted = hoveredModule && (
+          hoveredModule.id === m.id || hoveredModule.id === depId ||
+          hoveredModule.deps.includes(m.id) || hoveredModule.deps.includes(depId)
+        );
+
+        ctx.beginPath();
+        ctx.moveTo(dep.px, dep.py + 22);
+        const cpY = (dep.py + m.py) / 2;
+        ctx.bezierCurveTo(dep.px, cpY + 10, m.px, cpY - 10, m.px, m.py - 22);
+
+        if (isHighlighted) {
+          ctx.strokeStyle = hoveredModule.color + '60';
+          ctx.lineWidth = 2.5;
+        } else {
+          ctx.strokeStyle = 'rgba(88,166,255,.1)';
+          ctx.lineWidth = 1;
+        }
+        ctx.stroke();
+
+        // Arrowhead
+        if (isHighlighted) {
+          const angle = Math.atan2(m.py - 22 - cpY + 10, m.px - m.px);
+          ctx.beginPath();
+          ctx.moveTo(m.px, m.py - 22);
+          ctx.lineTo(m.px - 4, m.py - 28);
+          ctx.lineTo(m.px + 4, m.py - 28);
+          ctx.closePath();
+          ctx.fillStyle = hoveredModule.color + '60';
+          ctx.fill();
+        }
+      });
+    });
+
+    // Draw module nodes
+    mods.forEach(m => {
+      const isHovered = hoveredModule && hoveredModule.id === m.id;
+      const r = isHovered ? 24 : 20;
+
+      // Glow on hover
+      if (isHovered) {
+        const grad = ctx.createRadialGradient(m.px, m.py, 0, m.px, m.py, 45);
+        grad.addColorStop(0, m.color + '20');
+        grad.addColorStop(1, 'transparent');
+        ctx.beginPath();
+        ctx.arc(m.px, m.py, 45, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        ctx.fill();
+      }
+
+      // Circle
+      ctx.beginPath();
+      ctx.arc(m.px, m.py, r, 0, Math.PI * 2);
+      ctx.fillStyle = isHovered ? m.color + '20' : '#161b22';
+      ctx.fill();
+      ctx.strokeStyle = m.color;
+      ctx.lineWidth = isHovered ? 3 : 2;
+      ctx.stroke();
+
+      // Module name
+      ctx.fillStyle = isHovered ? '#fff' : m.color;
+      ctx.font = (isHovered ? 'bold ' : '') + '10px SF Mono,Fira Code,monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(m.name, m.px, m.py);
+
+      // Line count below
+      ctx.fillStyle = '#484f58';
+      ctx.font = '9px -apple-system,sans-serif';
+      ctx.fillText(m.lines + ' lines', m.px, m.py + r + 12);
+    });
+  }
+
+  resize();
+  draw();
+  window.addEventListener('resize', () => { resize(); draw(); });
+
+  canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const mods = getPositions();
+    let found = null;
+    mods.forEach(m => {
+      const dx = mx - m.px, dy = my - m.py;
+      if (dx * dx + dy * dy < 700) found = m;
+    });
+    if (found !== hoveredModule) {
+      hoveredModule = found;
+      canvas.style.cursor = found ? 'pointer' : 'default';
+      draw();
+    }
+  });
+
+  canvas.addEventListener('click', () => {
+    if (!hoveredModule) return;
+    const m = hoveredModule;
+    const info = document.getElementById('moduleInfo');
+    info.style.borderColor = m.color + '60';
+    info.innerHTML = `
+      <h3 style="color:${m.color}">${m.name} <span style="font-size:.7em;color:var(--gray);font-weight:400">Phase ${m.phase}</span></h3>
+      <p class="mi-desc">${m.desc}</p>
+      <div class="mi-meta">
+        <div class="mi-item">Team: <span>${m.team}</span></div>
+        <div class="mi-item">Lines: <span>${m.lines.toLocaleString()}</span></div>
+        <div class="mi-item">Dependencies: <span>${m.deps.length === 0 ? 'none (root)' : m.deps.join(', ')}</span></div>
+      </div>
+    `;
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    hoveredModule = null;
+    canvas.style.cursor = 'default';
+    draw();
+  });
+})();
+
+// ============================================================
+// SECTION 8: SURVIVAL CURVES (Canvas)
+// ============================================================
+
+(function drawSurvival() {
+  const canvas = document.getElementById('survivalCanvas');
+  const ctx = canvas.getContext('2d');
+  let W, H;
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    W = canvas.width = rect.width * dpr;
+    H = canvas.height = rect.height * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  // Survival distribution functions
+  function weibullS(t, k, lambda) {
+    return Math.exp(-Math.pow(t / lambda, k));
+  }
+
+  function exponentialS(t, lambda) {
+    return Math.exp(-t / lambda);
+  }
+
+  function bathtubS(t, lambda) {
+    const earlyHazard = 0.04 * Math.exp(-t / 4);
+    const baseHazard = 0.003;
+    const lateHazard = 0.00008 * t * t / (lambda * lambda) * 200;
+    const cumHazard = (earlyHazard + baseHazard + lateHazard) * t;
+    return Math.exp(-cumHazard);
+  }
+
+  function erf(x) {
+    const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741;
+    const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+    const sign = x < 0 ? -1 : 1;
+    x = Math.abs(x);
+    const t = 1 / (1 + p * x);
+    const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+    return sign * y;
+  }
+
+  function lognormalS(t, mu, sigma) {
+    if (t <= 0) return 1;
+    const z = (Math.log(t) - mu) / sigma;
+    return 0.5 * (1 - erf(z / Math.SQRT2));
+  }
+
+  function draw() {
+    const w = W / (window.devicePixelRatio || 1);
+    const h = H / (window.devicePixelRatio || 1);
+    const k = parseFloat(document.getElementById('weibullK').value);
+    const lambda = parseFloat(document.getElementById('weibullL').value);
+
+    ctx.clearRect(0, 0, w, h);
+
+    const pad = {top: 32, right: 32, bottom: 42, left: 52};
+    const gw = w - pad.left - pad.right;
+    const gh = h - pad.top - pad.bottom;
+    const maxT = 180;
+
+    // Background zones
+    // Deceased zone: S(t) < 0.10 (bottom 10%)
+    ctx.fillStyle = 'rgba(255,50,50,.05)';
+    ctx.fillRect(pad.left, pad.top + gh * 0.9, gw, gh * 0.1);
+
+    // Moribund zone: 0.10 < S(t) < 0.25
+    ctx.fillStyle = 'rgba(255,255,255,.03)';
+    ctx.fillRect(pad.left, pad.top + gh * 0.75, gw, gh * 0.15);
+
+    // Alive label
+    ctx.fillStyle = 'rgba(0,255,136,.06)';
+    ctx.font = '10px -apple-system,sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('ALIVE', pad.left + 6, pad.top + 18);
+
+    ctx.fillStyle = 'rgba(255,255,255,.12)';
+    ctx.fillText('MORIBUND', pad.left + 6, pad.top + gh * 0.75 + 14);
+
+    ctx.fillStyle = 'rgba(255,60,60,.15)';
+    ctx.fillText('DECEASED', pad.left + 6, pad.top + gh * 0.9 + 14);
+
+    // Threshold lines
+    ctx.setLineDash([5, 5]);
+    ctx.lineWidth = 1;
+
+    ctx.strokeStyle = 'rgba(255,255,255,.12)';
+    ctx.beginPath();
+    ctx.moveTo(pad.left, pad.top + gh * 0.75);
+    ctx.lineTo(pad.left + gw, pad.top + gh * 0.75);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(255,60,60,.15)';
+    ctx.beginPath();
+    ctx.moveTo(pad.left, pad.top + gh * 0.9);
+    ctx.lineTo(pad.left + gw, pad.top + gh * 0.9);
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+
+    // Threshold labels
+    ctx.fillStyle = 'rgba(255,255,255,.2)';
+    ctx.font = '9px SF Mono,monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText('S(t) = 0.25', pad.left + gw - 4, pad.top + gh * 0.75 - 5);
+    ctx.fillText('S(t) = 0.10', pad.left + gw - 4, pad.top + gh * 0.9 - 5);
+
+    // Axes
+    ctx.strokeStyle = '#30363d';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, pad.top);
+    ctx.lineTo(pad.left, pad.top + gh);
+    ctx.lineTo(pad.left + gw, pad.top + gh);
+    ctx.stroke();
+
+    // X axis ticks and labels
+    ctx.fillStyle = '#484f58';
+    ctx.font = '10px -apple-system,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    for (let d = 0; d <= maxT; d += 30) {
+      const x = pad.left + (d / maxT) * gw;
+      ctx.beginPath();
+      ctx.moveTo(x, pad.top + gh);
+      ctx.lineTo(x, pad.top + gh + 4);
+      ctx.strokeStyle = '#30363d';
+      ctx.stroke();
+      ctx.fillText(d + 'd', x, pad.top + gh + 8);
+    }
+
+    // Y axis ticks and labels
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (let s = 0; s <= 1; s += 0.25) {
+      const y = pad.top + (1 - s) * gh;
+      ctx.beginPath();
+      ctx.moveTo(pad.left - 4, y);
+      ctx.lineTo(pad.left, y);
+      ctx.strokeStyle = '#30363d';
+      ctx.stroke();
+      ctx.fillText(s.toFixed(2), pad.left - 8, y);
+    }
+
+    // Axis labels
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '11px -apple-system,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText('Time (days)', pad.left + gw / 2, pad.top + gh + 28);
+
+    ctx.save();
+    ctx.translate(13, pad.top + gh / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textBaseline = 'middle';
+    ctx.fillText('S(t) — Survival Probability', 0, 0);
+    ctx.restore();
+
+    // Draw the four survival curves
+    const curves = [
+      {fn: (t) => weibullS(t, k, lambda), color: '#00ff88', width: 2.5, label: 'Weibull'},
+      {fn: (t) => exponentialS(t, lambda), color: '#58a6ff', width: 1.5, label: 'Exponential'},
+      {fn: (t) => bathtubS(t, lambda), color: '#e6c200', width: 1.5, label: 'Bathtub'},
+      {fn: (t) => lognormalS(t, Math.log(lambda * 0.7), 0.85), color: '#a34450', width: 1.5, label: 'LogNormal'}
+    ];
+
+    curves.forEach(curve => {
+      ctx.beginPath();
+      ctx.strokeStyle = curve.color;
+      ctx.lineWidth = curve.width;
+      for (let px = 0; px <= gw; px++) {
+        const t = (px / gw) * maxT;
+        const s = Math.max(0, Math.min(1, curve.fn(t)));
+        const x = pad.left + px;
+        const y = pad.top + (1 - s) * gh;
+        if (px === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    });
+  }
+
+  resize();
+  draw();
+
+  document.getElementById('weibullK').addEventListener('input', function() {
+    document.getElementById('weibullKVal').textContent = 'k = ' + this.value;
+    draw();
+  });
+  document.getElementById('weibullL').addEventListener('input', function() {
+    document.getElementById('weibullLVal').innerHTML = '\u03BB = ' + this.value;
+    draw();
+  });
+  window.addEventListener('resize', () => { resize(); draw(); });
+})();
+
+// ============================================================
+// SECTION 9: NUMBERS + TIMELINE
+// ============================================================
+
+(function buildNumbers() {
+  const grid = document.getElementById('numbersGrid');
+  NUMBERS.forEach(n => {
+    const card = document.createElement('div');
+    card.className = 'number-card';
+    card.innerHTML = `
+      <div class="nc-val" data-target="${n.val}" data-suffix="">${n.val.toLocaleString()}</div>
+      <div class="nc-label">${n.label}</div>
+    `;
+    grid.appendChild(card);
+  });
+
+  const tl = document.getElementById('timeline');
+  TIMELINE.forEach(t => {
+    const item = document.createElement('div');
+    item.className = 'tl-item' + (t.active ? ' active' : '');
+    item.innerHTML = `
+      <h4>${t.phase}: ${t.title}</h4>
+      <p>${t.desc}</p>
+      <div class="tl-teams">
+        ${t.teams.map(tm => `<span class="tl-team" style="background:${tm.color}20;color:${tm.color};border:1px solid ${tm.color}40">${tm.name}</span>`).join('')}
+      </div>
+    `;
+    tl.appendChild(item);
+  });
+})();
+
+// ============================================================
+// SECTION 10: TEAMS
+// ============================================================
+
+(function buildTeams() {
+  const grid = document.getElementById('teamsGrid');
+  TEAMS.forEach(t => {
+    const card = document.createElement('div');
+    card.className = 'team-card';
+    card.innerHTML = `
+      <div class="tc-accent" style="background:${t.color}"></div>
+      <div class="tc-org" style="color:${t.color}">${t.org}</div>
+      <div class="tc-arch">${t.arch} &middot; Org ${t.num}</div>
+      <div class="tc-mods">${t.mods.map(m => `<span class="tc-mod">${m}</span>`).join('')}</div>
+      <div class="tc-lines">${t.lines.toLocaleString()} lines contributed</div>
+      <div class="tc-contribution">${t.contribution}</div>
+    `;
+    grid.appendChild(card);
+  });
+})();
+
+// ============================================================
+// RE-OBSERVE DYNAMICALLY CREATED ELEMENTS
+// ============================================================
+
+requestAnimationFrame(() => {
+  document.querySelectorAll('.reveal:not(.visible)').forEach(el => revealObserver.observe(el));
+});
+
+</script>
+</body>
+</html>
